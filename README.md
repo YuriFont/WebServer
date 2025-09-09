@@ -11,8 +11,6 @@ meu_projeto/
 ├── src/            # Implementações (.cpp) do código
 │   └── minha_classe.cpp
 │
-├── lib/            # (Opcional) bibliotecas externas ou compiladas (.a, .so, etc.)
-│
 ├── bin/            # Executáveis gerados
 │   └── meu_programa
 │
