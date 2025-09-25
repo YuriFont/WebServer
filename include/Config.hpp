@@ -8,8 +8,11 @@ class Config {
         Config(const std::string &filePath);
         ~Config();
     private:
-        std::string filePath;
-        void parseConfigFile();
+        std::string _filePath;
+        std::ifstream _file;
+        void _parseConfigFile();
+        void _openFile();
+        void _skipComments(std::string &line);
 };
 
 #endif
