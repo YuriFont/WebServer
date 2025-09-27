@@ -12,7 +12,7 @@ Config::Config(const std::string &filePath) : _filePath(filePath) {
         if ((iss >> line) && (line == "server") && (iss >> line) && (line == "{") && (iss.eof()))
             _parseConfigFile();
         else
-            throw std::runtime_error("Wrong initialization syntax: " + _filePath);   
+            throw std::runtime_error("Wrong initialization syntax: " + _filePath);
     }
     std::cout << GREEN << "[Config]: Config file parsed successfully." << RESET << std::endl;
 }
@@ -27,10 +27,30 @@ void Config::_openFile() {
 }
 
 void Config::_parseConfigFile() {
-    /*std::string line;
-    while (std::getline(_file, line)) {
+    std::string line;
 
-    }*/
+    if (!_getUtilLine(_file, line))
+        throw std::runtime_error("This server block is invalid: " + _filePath);
+    std::istringstream iss(line);
+    while (_getUtilLine(_file, line)) {
+        iss.clear();
+        iss.str(line);
+        std::cout << "Parsing line: " << line << std::endl;
+        if (line == "listen")
+            _parseListen(iss, line);
+        //else if (line == "server_name")
+            //_parseServerName(iss, line);
+        //else if (line == "error_page")
+            //_parseErrorPage(iss, line);
+        //else if (line == "client_max_body_size")
+            //_parseClientMaxBodySize(iss, line);
+        //else if (line == "location")
+            //_parseLocation(iss, line);
+        else if (line == "}")
+            return;
+        else
+            throw std::runtime_error("Unknown directive: " + line + " in " + _filePath);
+    }
     _file.close();
 }
 
@@ -47,4 +67,19 @@ void Config::_skipComments(std::string &line) {
     } else {
         line = line.substr(first, last - first + 1);
     }
+}
+
+std::istream& Config::_getUtilLine(std::istream &is, std::string &line) {
+    while (std::getline(is, line)) {
+        _skipComments(line);
+        if (!line.empty())
+            return is;
+    }
+    return is;
+}
+
+void Config::_parseListen(std::istringstream &iss, std::string &line) {
+    std::string addressIP;
+    int addressPort;
+    
 }

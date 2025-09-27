@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <cerrno>
 #include <sstream>
+#include <map>
 
 #define RESET   "\033[0m"
 #define GREEN   "\033[32m"
