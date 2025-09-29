@@ -23,11 +23,13 @@ class Config {
         void _openFile();
         void _skipComments(std::string &line);
         std::istream& _getUtilLine(std::istream &is, std::string &line);
-        void Config::_parseListen(std::istringstream &iss, std::string &line);
+        void _parseListen(std::istringstream &iss);
         //void Config::_parseServerName(std::istringstream &iss, std::string &line);
         //void Config::_parseErrorPage(std::istringstream &iss, std::string &line);
         //void Config::_parseClientMaxBodySize(std::istringstream &iss, std::string &line);
         //void Config::_parseLocation(std::istringstream &iss, std::string &line);
+        bool IPValidation(const std::string &addressIP);
+        bool PortValidation(int addressPort);
 };
 
 #endif

@@ -1,4 +1,5 @@
 #include "../include/Config.hpp"
+#include "../include/Utils.hpp"
 
 Config::Config(const std::string &filePath) : _filePath(filePath) {
     std::string line;
@@ -32,12 +33,15 @@ void Config::_parseConfigFile() {
     if (!_getUtilLine(_file, line))
         throw std::runtime_error("This server block is invalid: " + _filePath);
     std::istringstream iss(line);
-    while (_getUtilLine(_file, line)) {
+    do {
         iss.clear();
         iss.str(line);
+        iss >> line;
         std::cout << "Parsing line: " << line << std::endl;
-        if (line == "listen")
-            _parseListen(iss, line);
+        if (line == "listen") {
+            _parseListen(iss);
+            std::cout << "Parsed listen directive: IP = " << this->ip << ", Port = " << this->port << std::endl;
+        }
         //else if (line == "server_name")
             //_parseServerName(iss, line);
         //else if (line == "error_page")
@@ -50,7 +54,7 @@ void Config::_parseConfigFile() {
             return;
         else
             throw std::runtime_error("Unknown directive: " + line + " in " + _filePath);
-    }
+    } while (_getUtilLine(_file, line));
     _file.close();
 }
 
@@ -60,13 +64,7 @@ void Config::_skipComments(std::string &line) {
 	iss.clear();
 	iss.str(line);
 	std::getline(iss, line, '#');
-    size_t first = line.find_first_not_of(" \t");
-    size_t last = line.find_last_not_of(" \t");
-    if (first == std::string::npos || last == std::string::npos) {
-        line.clear();
-    } else {
-        line = line.substr(first, last - first + 1);
-    }
+    line = Utils::trim(line);
 }
 
 std::istream& Config::_getUtilLine(std::istream &is, std::string &line) {
@@ -78,8 +76,57 @@ std::istream& Config::_getUtilLine(std::istream &is, std::string &line) {
     return is;
 }
 
-void Config::_parseListen(std::istringstream &iss, std::string &line) {
+void Config::_parseListen(std::istringstream &iss) {
     std::string addressIP;
     int addressPort;
-    
+
+    if (iss.str().find(':') == std::string::npos)
+        throw std::runtime_error("Listen directive must be in the format IP:PORT in " + _filePath);
+    std::getline(iss, addressIP, ':');
+    std::string portStr = iss.str().substr(iss.str().find(':') + 1);
+    addressPort = std::atoi(portStr.c_str());
+    addressIP = Utils::trim(addressIP);
+    if (!IPValidation(addressIP))
+        throw std::runtime_error("Invalid IP address: " + addressIP + " in " + _filePath);
+    if (!PortValidation(addressPort))
+        throw std::runtime_error("Invalid port number: " + Utils::toString(addressPort) + " in " + _filePath);
+    this->ip = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
+    this->port = addressPort;
+}
+
+bool Config::IPValidation(const std::string &addressIP) {
+    std::istringstream iss(addressIP);
+    std::string segment;
+    int count = 0;
+
+    if (addressIP.empty() || addressIP[addressIP.size() - 1] == '.')
+        return false;
+    if (addressIP == "localhost")
+        return true;
+    while (std::getline(iss, segment, '.')) {
+        count++;
+
+        if (segment.empty())
+            return false;
+
+        for (size_t i = 0; i < segment.size(); i++) {
+            if (!std::isdigit(segment[i]))
+                return false;
+        }
+
+        if (segment.size() > 1 && segment[0] == '0')
+            return false;
+
+        int value = std::atoi(segment.c_str());
+        if (value < 0 || value > 255)
+            return false;
+    }
+    return (count == 4);
+}
+
+bool Config::PortValidation(int addressPort) {
+    if (addressPort < 1024 || addressPort > 65535) {
+        return false;
+    }
+    return true;
 }

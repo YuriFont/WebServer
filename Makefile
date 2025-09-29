@@ -1,6 +1,7 @@
 NAME = bin/webserv
 FILES = main.cpp \
-		Config.cpp
+		Config.cpp \
+		Utils.cpp
 SRC = $(addprefix src/, $(FILES))
 OBJ = $(addprefix obj/, ${FILES:%.cpp=%.o})
 CXX = c++
