@@ -42,16 +42,23 @@ void Config::_parseConfigFile() {
             _parseListen(iss);
             std::cout << "Parsed listen directive: IP = " << this->ip << ", Port = " << this->port << std::endl;
         }
-        //else if (line == "server_name")
-            //_parseServerName(iss, line);
-        //else if (line == "error_page")
-            //_parseErrorPage(iss, line);
-        //else if (line == "client_max_body_size")
-            //_parseClientMaxBodySize(iss, line);
-        //else if (line == "location")
-            //_parseLocation(iss, line);
+        else if (line == "server_name") {
+            _parseServerName(iss);
+            std::cout << "Parsed server_name directive: server_name = " << this->server_name << std::endl;
+        }
+        else if (line == "error_page") {
+            _parseErrorPages(iss);
+            std::cout << "Parsed error_page directive: error_code = " << (--this->error_page.end())->first << ", path = " << (--this->error_page.end())->second << std::endl;
+        }
+        else if (line == "client_max_body_size") {
+            _parseClientMaxBodySize(iss);
+            std::cout << "Parsed client_max_body_size directive: client_max_body_size = " << this->client_max_body_size << std::endl;
+        }
+        else if (line == "location") {
+            _parseLocation(iss);
+        }
         else if (line == "}")
-            return;
+            break;
         else
             throw std::runtime_error("Unknown directive: " + line + " in " + _filePath);
     } while (_getUtilLine(_file, line));
@@ -86,15 +93,15 @@ void Config::_parseListen(std::istringstream &iss) {
     std::string portStr = iss.str().substr(iss.str().find(':') + 1);
     addressPort = std::atoi(portStr.c_str());
     addressIP = Utils::trim(addressIP);
-    if (!IPValidation(addressIP))
+    if (!_IPValidation(addressIP))
         throw std::runtime_error("Invalid IP address: " + addressIP + " in " + _filePath);
-    if (!PortValidation(addressPort))
+    if (!_PortValidation(addressPort))
         throw std::runtime_error("Invalid port number: " + Utils::toString(addressPort) + " in " + _filePath);
     this->ip = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
     this->port = addressPort;
 }
 
-bool Config::IPValidation(const std::string &addressIP) {
+bool Config::_IPValidation(const std::string &addressIP) {
     std::istringstream iss(addressIP);
     std::string segment;
     int count = 0;
@@ -124,9 +131,35 @@ bool Config::IPValidation(const std::string &addressIP) {
     return (count == 4);
 }
 
-bool Config::PortValidation(int addressPort) {
+bool Config::_PortValidation(int addressPort) {
     if (addressPort < 1024 || addressPort > 65535) {
         return false;
     }
     return true;
+}
+
+void Config::_parseServerName(std::istringstream &iss) {
+    std::string name;
+    if (!(iss >> name) || !(iss.eof()))
+        throw std::runtime_error("Invalid server_name directive in " + _filePath);
+    this->server_name = name;
+}
+
+void Config::_parseErrorPages(std::istringstream &iss) {
+    int errorCode;
+    std::string errorPath;
+    if (!(iss >> errorCode) || !(iss >> errorPath) || !(iss.eof()))
+        throw std::runtime_error("Invalid error_page directive in " + _filePath);
+    this->error_page[errorCode] = errorPath;
+}
+
+void Config::_parseClientMaxBodySize(std::istringstream &iss) {
+    std::string sizeStr;
+    if (!(iss >> sizeStr) || !(iss.eof()))
+        throw std::runtime_error("Invalid client_max_body_size directive in " + _filePath);
+    this->client_max_body_size = Utils::toSizeT(sizeStr);
+}
+
+void Config::_parseLocation(std::istringstream &iss) {
+    
 }

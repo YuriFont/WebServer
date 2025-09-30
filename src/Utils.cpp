@@ -19,3 +19,7 @@ std::string Utils::toString(int n) {
     oss << n;
     return oss.str();
 }
+
+size_t Utils::toSizeT(const std::string &s) {
+    return static_cast<size_t>(strtoul(s.c_str(), NULL, 10));
+}

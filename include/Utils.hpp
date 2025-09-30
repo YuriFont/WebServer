@@ -11,6 +11,7 @@ class Utils {
     public:
         static std::string trim(const std::string &s);
         static std::string toString(int n);
+        static size_t toSizeT(const std::string &s);
 };
 
 #endif
