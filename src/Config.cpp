@@ -1,5 +1,6 @@
 #include "../include/Config.hpp"
 #include "../include/Utils.hpp"
+#include "../include/Location.hpp"
 
 Config::Config(const std::string &filePath) : _filePath(filePath) {
     std::string line;
@@ -161,5 +162,36 @@ void Config::_parseClientMaxBodySize(std::istringstream &iss) {
 }
 
 void Config::_parseLocation(std::istringstream &iss) {
-    
+    Location location;
+    std::string line;
+
+    if (!(iss >> line))
+        throw std::runtime_error("Invalid location directive in " + _filePath);
+    location.setPath(line);
+    if (!(iss >> line) || line != "{")
+        throw std::runtime_error("Expected '{' after location path in " + _filePath);
+    std::cout << "Parsing location block for path: " << location.getPath() << std::endl;
+    while (_getUtilLine(_file, line)) {
+        iss.clear();
+        iss.str(line);
+        iss >> line;
+        if (line == "}")
+            break;
+        else if (line == "root")
+            location.setRoot(iss);
+        else if (line == "index")
+            location.setIndex(iss);
+        else if (line == "methods")
+            location.setMethods(iss);
+        else if (line == "redirect")
+            location.setRedirect(iss);
+        else if (line == "autoindex")
+            location.setAutoindex(iss);
+        else if (line == "upload_store")
+            location.setUploadStore(iss);
+        else if (line == "cgi")
+            location.addCgi(iss);
+        else
+            throw std::runtime_error("Unknown directive in location block: " + line + " in " + _filePath);
+    }
 }

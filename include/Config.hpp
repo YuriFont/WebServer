@@ -2,20 +2,19 @@
 #define CONFIG_HPP
 
 #include "WebServer.hpp"
+#include "Location.hpp"
 
 class Config {
     public:
         std::string server_name;
-        std::string upload_path;
-        std::string cgi_path;
-        std::string cgi_extension;
         std::string ip;
         int port;
         std::map<int, std::string> error_page;
         size_t client_max_body_size;
-        bool autoindex;
+        std::vector<Location> locations;
         Config(const std::string &filePath);
         ~Config();
+
     private:
         std::string _filePath;
         std::ifstream _file;

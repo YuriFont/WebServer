@@ -12,6 +12,7 @@
 #include <cerrno>
 #include <sstream>
 #include <map>
+#include <vector>
 
 #define RESET   "\033[0m"
 #define GREEN   "\033[32m"
