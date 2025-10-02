@@ -45,11 +45,35 @@ void Location::setPath(const std::string &p) {
 }
 
 void Location::setMethods(std::istringstream &iss) {
-    _methods.push_back(iss.str());
+    std::string method;
+    while (iss >> method) {
+        if (method != "GET" && method != "POST" && method != "DELETE" && method != "NONE")
+            throw std::runtime_error("Invalid HTTP method: " + method);
+        
+        if (method == "NONE") {
+            _methods.clear();
+            break;
+        }
+
+        _methods.push_back(method);
+    }
 }
 
 void Location::setRoot(std::istringstream &iss) {
-    _root = iss.str();
+    std::string rootPath;
+    struct stat info;
+    
+    iss >> rootPath;
+    if (iss.fail() || !iss.eof() || rootPath.empty())
+        throw(std::runtime_error("Error in `root`: invalid format"));
+
+    if (stat(rootPath.c_str(), &info) != 0)
+        throw(std::runtime_error("Error in `root`: " + std::string(strerror(errno))));
+
+    if (!S_ISDIR(info.st_mode))
+        throw(std::runtime_error("Error in `root`: path is not a directory"));
+    
+    _root = rootPath;
 }
 
 void Location::setIndex(std::istringstream &iss) {
