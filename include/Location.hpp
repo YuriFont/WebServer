@@ -11,7 +11,7 @@ class Location {
         std::string getPath() const;
         const std::vector<std::string>& getMethods() const;
         std::string getRoot() const;
-        std::string getIndex() const;
+        const std::vector<std::string>& getIndex() const;
         bool isAutoindex() const;
         std::string getRedirect() const;
         bool isUploadEnabled() const;
@@ -32,7 +32,7 @@ class Location {
         std::string _path;
         std::vector<std::string> _methods;
         std::string _root;
-        std::string _index;
+        std::vector<std::string> _index;
         bool _autoindex;
         std::string _redirect;
         bool _upload_enable;

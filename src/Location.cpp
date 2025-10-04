@@ -16,7 +16,7 @@ std::string Location::getRoot() const {
     return _root;
 }
 
-std::string Location::getIndex() const {
+const std::vector<std::string>& Location::getIndex() const {
     return _index;
 }
 
@@ -41,6 +41,8 @@ const std::map<std::string, std::string>& Location::getCgi() const {
 }
 
 void Location::setPath(const std::string &p) {
+    if (p.empty() || p[0] != '/')
+        throw std::runtime_error("Location path must start with '/'");
     _path = p;
 }
 
@@ -77,7 +79,12 @@ void Location::setRoot(std::istringstream &iss) {
 }
 
 void Location::setIndex(std::istringstream &iss) {
-    _index = iss.str();
+    std::string indexFile;
+    while (iss >> indexFile) {
+        _index.push_back(indexFile);
+    }
+    if (!iss.eof())
+        throw std::runtime_error("Invalid format for index directive");
 }
 
 void Location::setAutoindex(std::istringstream &iss) {
