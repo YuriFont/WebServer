@@ -16,6 +16,7 @@ Config::Config(const std::string &filePath) : _filePath(filePath) {
         else
             throw std::runtime_error("Wrong initialization syntax: " + _filePath);
     }
+
     std::cout << GREEN << "[Config]: Config file parsed successfully." << RESET << std::endl;
 }
 
@@ -33,36 +34,28 @@ void Config::_parseConfigFile() {
 
     if (!_getUtilLine(_file, line))
         throw std::runtime_error("This server block is invalid: " + _filePath);
+
     std::istringstream iss(line);
     do {
         iss.clear();
         iss.str(line);
         iss >> line;
-        std::cout << "Parsing line: " << line << std::endl;
-        if (line == "listen") {
+        if (line == "listen")
             _parseListen(iss);
-            std::cout << "Parsed listen directive: IP = " << this->ip << ", Port = " << this->port << std::endl;
-        }
-        else if (line == "server_name") {
+        else if (line == "server_name")
             _parseServerName(iss);
-            std::cout << "Parsed server_name directive: server_name = " << this->server_name << std::endl;
-        }
-        else if (line == "error_page") {
+        else if (line == "error_page")
             _parseErrorPages(iss);
-            std::cout << "Parsed error_page directive: error_code = " << (--this->error_page.end())->first << ", path = " << (--this->error_page.end())->second << std::endl;
-        }
-        else if (line == "client_max_body_size") {
+        else if (line == "client_max_body_size")
             _parseClientMaxBodySize(iss);
-            std::cout << "Parsed client_max_body_size directive: client_max_body_size = " << this->client_max_body_size << std::endl;
-        }
-        else if (line == "location") {
+        else if (line == "location")
             _parseLocation(iss);
-        }
         else if (line == "}")
             break;
         else
             throw std::runtime_error("Unknown directive: " + line + " in " + _filePath);
     } while (_getUtilLine(_file, line));
+
     _file.close();
 }
 
@@ -81,6 +74,7 @@ std::istream& Config::_getUtilLine(std::istream &is, std::string &line) {
         if (!line.empty())
             return is;
     }
+
     return is;
 }
 
@@ -90,14 +84,18 @@ void Config::_parseListen(std::istringstream &iss) {
 
     if (iss.str().find(':') == std::string::npos)
         throw std::runtime_error("Listen directive must be in the format IP:PORT in " + _filePath);
+
     std::getline(iss, addressIP, ':');
     std::string portStr = iss.str().substr(iss.str().find(':') + 1);
+
     addressPort = std::atoi(portStr.c_str());
     addressIP = Utils::trim(addressIP);
+
     if (!_IPValidation(addressIP))
         throw std::runtime_error("Invalid IP address: " + addressIP + " in " + _filePath);
     if (!_PortValidation(addressPort))
         throw std::runtime_error("Invalid port number: " + Utils::toString(addressPort) + " in " + _filePath);
+
     this->ip = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
     this->port = addressPort;
 }
@@ -111,6 +109,7 @@ bool Config::_IPValidation(const std::string &addressIP) {
         return false;
     if (addressIP == "localhost")
         return true;
+
     while (std::getline(iss, segment, '.')) {
         count++;
 
@@ -129,6 +128,7 @@ bool Config::_IPValidation(const std::string &addressIP) {
         if (value < 0 || value > 255)
             return false;
     }
+
     return (count == 4);
 }
 
@@ -141,6 +141,7 @@ bool Config::_PortValidation(int addressPort) {
 
 void Config::_parseServerName(std::istringstream &iss) {
     std::string name;
+
     if (!(iss >> name) || !(iss.eof()))
         throw std::runtime_error("Invalid server_name directive in " + _filePath);
     this->server_name = name;
@@ -149,6 +150,7 @@ void Config::_parseServerName(std::istringstream &iss) {
 void Config::_parseErrorPages(std::istringstream &iss) {
     int errorCode;
     std::string errorPath;
+
     if (!(iss >> errorCode) || !(iss >> errorPath) || !(iss.eof()))
         throw std::runtime_error("Invalid error_page directive in " + _filePath);
     this->error_page[errorCode] = errorPath;
@@ -156,6 +158,7 @@ void Config::_parseErrorPages(std::istringstream &iss) {
 
 void Config::_parseClientMaxBodySize(std::istringstream &iss) {
     std::string sizeStr;
+
     if (!(iss >> sizeStr) || !(iss.eof()))
         throw std::runtime_error("Invalid client_max_body_size directive in " + _filePath);
     this->client_max_body_size = Utils::toSizeT(sizeStr);
@@ -170,7 +173,7 @@ void Config::_parseLocation(std::istringstream &iss) {
     location.setPath(line);
     if (!(iss >> line) || line != "{")
         throw std::runtime_error("Expected '{' after location path in " + _filePath);
-    std::cout << "Parsing location block for path: " << location.getPath() << std::endl;
+
     while (_getUtilLine(_file, line)) {
         iss.clear();
         iss.str(line);
@@ -194,4 +197,6 @@ void Config::_parseLocation(std::istringstream &iss) {
         else
             throw std::runtime_error("Unknown directive in location block: " + line + " in " + _filePath);
     }
+
+    locations[location.getPath()] = location;
 }

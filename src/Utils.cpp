@@ -23,3 +23,37 @@ std::string Utils::toString(int n) {
 size_t Utils::toSizeT(const std::string &s) {
     return static_cast<size_t>(strtoul(s.c_str(), NULL, 10));
 }
+
+int Utils::countWords(std::istringstream &iss) {
+    std::istringstream issTemp(iss.str());
+    std::string word;
+    int count = 0;
+
+    while (issTemp >> word)
+        count++;
+
+    return count;
+}
+
+bool Utils::isValidUrl(const std::string &url)
+{
+    if (url.find("http://") == 0) {
+        if (url.size() <= 7)
+            return false;
+    } 
+    else if (url.find("https://") == 0) {
+        if (url.size() <= 8)
+            return false;
+    }
+    else
+        return false;
+
+    std::string rest = url.substr(url.find("://") + 3);
+    if (rest.find('.') == std::string::npos)
+        return false;
+
+    if (rest[rest.size()-1] == '.')
+        return false;
+
+    return true;
+}

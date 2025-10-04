@@ -35,6 +35,7 @@ class Location {
         std::vector<std::string> _index;
         bool _autoindex;
         std::string _redirect;
+        int _redirectCode;
         bool _upload_enable;
         std::string _uploadStore;
         std::map<std::string, std::string> _cgi;

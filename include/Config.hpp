@@ -11,7 +11,7 @@ class Config {
         int port;
         std::map<int, std::string> error_page;
         size_t client_max_body_size;
-        std::vector<Location> locations;
+        std::map<std::string, Location> locations;
         Config(const std::string &filePath);
         ~Config();
 
