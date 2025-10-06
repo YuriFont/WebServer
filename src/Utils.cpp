@@ -40,7 +40,7 @@ bool Utils::isValidUrl(const std::string &url)
     if (url.find("http://") == 0) {
         if (url.size() <= 7)
             return false;
-    } 
+    }
     else if (url.find("https://") == 0) {
         if (url.size() <= 8)
             return false;
