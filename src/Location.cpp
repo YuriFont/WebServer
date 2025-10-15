@@ -71,6 +71,7 @@ void Location::setRoot(std::istringstream &iss) {
     if (iss.fail() || !iss.eof() || rootPath.empty())
         throw(std::runtime_error("Error in `root`: invalid format"));
 
+    std::cout << rootPath << std::endl;
     if (stat(rootPath.c_str(), &info) != 0)
         throw(std::runtime_error("Error in `root`: " + std::string(strerror(errno))));
 
