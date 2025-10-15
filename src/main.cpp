@@ -13,6 +13,8 @@
 #include "../include/Config.hpp"
 #include "../include/Server.hpp"
 
+
+// criar pasta uploads, files, readonly no www
 int main(int ac, char **av)
 {
     if (ac > 2) {
