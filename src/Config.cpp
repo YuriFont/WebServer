@@ -34,7 +34,7 @@ void Config::_parseConfigFile() {
 
     if (!_getUtilLine(_file, line))
         throw std::runtime_error("This server block is invalid: " + _filePath);
-
+   
     std::istringstream iss(line);
     do {
         iss.clear();
