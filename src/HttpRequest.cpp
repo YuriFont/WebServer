@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include "../include/Utils.hpp"
+#include <exception>
 
 HttpRequest::HttpRequest(char *buffer): _buffer(buffer) {
 
@@ -46,8 +47,19 @@ HttpRequest::HttpRequest(char *buffer): _buffer(buffer) {
         }
         option++;
     }
+
+    for (size_t i = 1; i < lines.size(); i++) {
+
+        size_t pos = lines[i].find(':');
+        if (pos == std::string::npos) {
+            continue ; 
+        }
+        std::string key = Utils::trim(lines[i].substr(0, pos));
+        std::string value = Utils::trim(lines[i].substr(pos + 1, lines[i].size()));
+        this->_headers[key] = value;
+    }
+
     std::cout << this->getMethod() << " " << this->getPath() << " " << this->getHttpVersion() << std::endl;
-    // std::cout << buffer << std::endl;
 };
 
 HttpRequest::~HttpRequest() {

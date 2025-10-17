@@ -71,7 +71,6 @@ void Location::setRoot(std::istringstream &iss) {
     if (iss.fail() || !iss.eof() || rootPath.empty())
         throw(std::runtime_error("Error in `root`: invalid format"));
 
-    std::cout << rootPath << std::endl;
     if (stat(rootPath.c_str(), &info) != 0)
         throw(std::runtime_error("Error in `root`: " + std::string(strerror(errno))));
 
@@ -172,3 +171,13 @@ void Location::addCgi(std::istringstream &iss) {
 
     _cgi[extension] = scriptPath;
 }
+
+bool Location::isMethodAllowed(const std::string& method) const {
+
+    for (size_t i = 0; i < this->_methods.size(); i++) {
+        
+        if (method.compare(this->_methods[i]) == 0)
+            return true;
+    }
+    return false;
+};

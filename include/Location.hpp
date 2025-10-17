@@ -10,6 +10,7 @@ class Location {
 
         std::string getPath() const;
         const std::vector<std::string>& getMethods() const;
+        bool isMethodAllowed(const std::string& method) const;
         std::string getRoot() const;
         const std::vector<std::string>& getIndex() const;
         bool isAutoindex() const;

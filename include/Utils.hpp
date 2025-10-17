@@ -14,6 +14,7 @@ class Utils {
         static size_t toSizeT(const std::string &s);
         static int countWords(std::istringstream &iss);
         static bool isValidUrl(const std::string &url);
+        static std::string getContentType(const std::string& path);
 };
 
 #endif

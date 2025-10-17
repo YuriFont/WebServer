@@ -57,3 +57,13 @@ bool Utils::isValidUrl(const std::string &url)
 
     return true;
 }
+
+std::string Utils::getContentType(const std::string& path) {
+    if (path.find(".html") != std::string::npos) return "text/html";
+    if (path.find(".css") != std::string::npos) return "text/css";
+    if (path.find(".js") != std::string::npos) return "application/javascript";
+    if (path.find(".png") != std::string::npos) return "image/png";
+    if (path.find(".ico") != std::string::npos) return "image/vnd.microsoft.icon";
+    if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) return "image/jpeg";
+    return "text/html"; // default
+}

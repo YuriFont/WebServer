@@ -4,7 +4,8 @@ FILES = Config.cpp \
 		Location.cpp \
 		Server.cpp \
 		HttpRequest.cpp \
-		HttpResponse.cpp
+		HttpResponse.cpp \
+		HttpStatus.cpp
 SRC = $(addprefix src/, $(FILES))
 OBJ = $(addprefix obj/, ${FILES:%.cpp=%.o})
 CXX = c++
