@@ -15,6 +15,8 @@
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
+#include <arpa/inet.h>
 
 #define RESET   "\033[0m"
 #define GREEN   "\033[32m"
