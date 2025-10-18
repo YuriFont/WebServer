@@ -171,3 +171,13 @@ void Location::addCgi(std::istringstream &iss) {
 
     _cgi[extension] = scriptPath;
 }
+
+bool Location::isMethodAllowed(const std::string& method) const {
+
+    for (size_t i = 0; i < this->_methods.size(); i++) {
+        
+        if (method.compare(this->_methods[i]) == 0)
+            return true;
+    }
+    return false;
+};
