@@ -5,7 +5,11 @@ FILES = Config.cpp \
 		Server.cpp \
 		HttpRequest.cpp \
 		HttpResponse.cpp \
-		HttpStatus.cpp
+		HttpStatus.cpp \
+		RequestHandler.cpp \
+		GetHandler.cpp \
+		PostHandler.cpp \
+		DeleteHandler.cpp
 SRC = $(addprefix src/, $(FILES))
 OBJ = $(addprefix obj/, ${FILES:%.cpp=%.o})
 CXX = c++
