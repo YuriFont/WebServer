@@ -6,17 +6,24 @@
 /*   By: yufonten <yufonten@student.42.rio>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/09 16:09:31 by yufonten          #+#    #+#             */
-/*   Updated: 2025/10/06 10:39:40 by yufonten         ###   ########.fr       */
+/*   Updated: 2025/10/18 15:07:39 by yufonten         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/Config.hpp"
 #include "../include/Server.hpp"
 
+void sigint_handler(int signum)
+{
+    
+    std::cout << "\nCaught signal " << signum << ", shutting down server gracefully..." << std::endl;
+    exit(0);
+}
 
 // criar pasta uploads, files, readonly no www
 int main(int ac, char **av)
 {
+    signal(SIGINT, sigint_handler);
     if (ac > 2) {
         std::cerr << "Error - Usage: " << av[0] << " [config_file]" << std::endl;
         return 1;

@@ -96,37 +96,40 @@ std::string Server::fileToString(const Location &location, const std::string &na
 
 void Server::initSocket()
 {
-
     this->server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->server_fd == -1)
     {
-        strerror(errno);
+        std::cerr << "Erro no socket: " << strerror(errno) << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    // não bloqueante, serve para não ficar esperando quando tiver em uma conexão, F_SETFL serve para modificar o descritor de arquivos
     fcntl(this->server_fd, F_SETFL, O_NONBLOCK);
 
-    struct sockaddr_in addr;
     int opt = 1;
-    socklen_t addrlen = sizeof(addr);
-
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(4242);
-
-    // permitir reuso da porta sem o timeout de segurança
-    if (setsockopt(this->server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))
+    if (setsockopt(this->server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
-        strerror(errno);
+        std::cerr << "Erro no setsockopt: " << strerror(errno) << std::endl;
         close(this->server_fd);
         exit(EXIT_FAILURE);
     }
 
+    struct sockaddr_in addr;
+    std::memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(_config.port);
+    addr.sin_addr.s_addr = inet_addr(this->_config.ip.c_str());
+
+    if (addr.sin_addr.s_addr == INADDR_NONE)
+    {
+        std::cerr << "IP inválido: " << this->_config.ip << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    socklen_t addrlen = sizeof(addr);
+
     if (bind(this->server_fd, (struct sockaddr *)&addr, addrlen) < 0)
     {
-        strerror(errno);
-        std::cout << "Error no bind" << std::endl;
+        std::cerr << "Error no bind: " << strerror(errno) << std::endl;
         close(this->server_fd);
         exit(EXIT_FAILURE);
     }
