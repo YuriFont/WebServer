@@ -1,4 +1,5 @@
 #include "../include/HttpStatus.hpp"
+#include "../include/Utils.hpp"
 
 HttpStatus::HttpStatus() {
     
@@ -61,3 +62,16 @@ const std::string& HttpStatus::getHttpStatusMensager(const int& status) const {
     else
         return unknown;
 };
+
+int HttpStatus::getCodeStatus() {
+    return this->codeStatus;
+};
+
+void HttpStatus::setCodeStatus(const int& codeStatus) {
+    this->codeStatus = codeStatus;
+};
+
+const std::string HttpStatus::makeResponseStatus() {
+
+    return (Utils::toString(this->codeStatus) + " " + this->getHttpStatusMensager(this->codeStatus));
+}

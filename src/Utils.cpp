@@ -58,6 +58,17 @@ bool Utils::isValidUrl(const std::string &url)
     return true;
 }
 
+std::string Utils::buildPathRequisition(const std::string& locationPath, const std::string& rootPath, const std::string& requestPath) {
+
+    std::string path = requestPath;
+    std::string result = rootPath;
+    path.replace(0, locationPath.size(), "");
+
+    result += path;
+
+    return result;
+}
+
 std::string Utils::getContentType(const std::string& path) {
     if (path.find(".html") != std::string::npos) return "text/html";
     if (path.find(".css") != std::string::npos) return "text/css";
