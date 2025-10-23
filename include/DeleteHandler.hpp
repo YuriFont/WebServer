@@ -6,8 +6,8 @@
 #include "Location.hpp"
 
 class DeleteHandler {
-public:
-    static HttpResponse process(HttpRequest &request, const Location &location);
+    public:
+        static HttpResponse process(HttpRequest &request, const Location &location);
 };
 
 #endif
