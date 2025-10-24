@@ -63,7 +63,10 @@ std::string Utils::buildPathRequisition(const std::string& locationPath, const s
     std::string path = requestPath;
     std::string result = rootPath;
     path.replace(0, locationPath.size(), "");
-
+    if (!result.empty() && result[result.size() - 1] != '/')
+        result += '/';
+    if (!path.empty() && path[0] == '/')
+        path = path.substr(1);
     result += path;
 
     return result;
@@ -77,4 +80,56 @@ std::string Utils::getContentType(const std::string& path) {
     if (path.find(".ico") != std::string::npos) return "image/vnd.microsoft.icon";
     if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) return "image/jpeg";
     return "text/html"; // default
+}
+
+// Read a file from disk and return its contents as a string
+bool Utils::readFile(const std::string &path, std::string &out)
+{
+    int fd;
+    char buffer[1024];
+    ssize_t bytesRead;
+
+    fd = open(path.c_str(), O_RDONLY);
+    if (fd < 0)
+        return false;
+    out.clear();
+    while((bytesRead = read(fd, buffer, sizeof(buffer))) > 0)
+        out.append(buffer, bytesRead);
+    close(fd);
+    return true;
+}
+
+// Generate a basic HTML directory listing (autoindex)
+std::string Utils::generateAutoindex(const std::string &dirPath, const std::string &urlPath)
+{
+    std::string html = "<html><head><title>Index of " + urlPath + "</title></head><body>";
+    html += "<h1>Index of " + urlPath + "</h1><ul>";
+
+    DIR *dir = opendir(dirPath.c_str());
+    if (!dir)
+    {
+        html += "<li>Permission denied</li></ul></body></html>";
+        return html;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        std::string name = entry->d_name;
+        if (name == ".")
+            continue;
+
+        // ignora o pai ("..") mas pode incluir se quiser
+        if (name == "..")
+            continue;
+
+        html += "<li><a href=\"" + urlPath;
+        if (urlPath.size() == 0 || urlPath[urlPath.size() - 1] != '/')
+            html += "/";
+        html += name + "\">" + name + "</a></li>";
+    }
+
+    closedir(dir);
+    html += "</ul></body></html>";
+    return html;
 }
