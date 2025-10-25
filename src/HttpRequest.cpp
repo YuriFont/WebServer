@@ -71,7 +71,7 @@ const std::string& HttpRequest::getQueryString() const {
     return this->_queryString;
 };
 
-const int HttpRequest::getContentLength() const {
+int HttpRequest::getContentLength() const {
     std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
     if (it == _headers.end())
         return 0;
