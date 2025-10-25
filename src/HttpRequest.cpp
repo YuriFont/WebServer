@@ -75,10 +75,6 @@ int HttpRequest::getContentLength() const {
     std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
     if (it == _headers.end())
         return 0;
-    try {
-        std::string value = it->second;
-        return std::atoi(value.c_str());
-    } catch (...) {
-        return 0;
-    }
+    std::string value = it->second;
+    return std::atoi(value.c_str());
 }
