@@ -15,6 +15,7 @@ class Utils {
         static int countWords(std::istringstream &iss);
         static bool isValidUrl(const std::string &url);
         static std::string getContentType(const std::string& path);
+        static bool writeFile(const std::string &path, const std::string &data);
 };
 
 #endif

@@ -34,6 +34,8 @@ bool Location::isUploadEnabled() const {
 }
 
 std::string Location::getUploadStore() const {
+    if (_uploadStore.empty())
+        return _root;
     return _uploadStore;
 }
 
@@ -51,13 +53,14 @@ void Location::setMethods(std::istringstream &iss) {
     std::string method;
 
     while (iss >> method) {
+        if (isMethodAllowed("NONE"))
+            return;
+
         if (method != "GET" && method != "POST" && method != "DELETE" && method != "NONE")
             throw std::runtime_error("Invalid HTTP method: " + method);
         
-        if (method == "NONE") {
+        if (method == "NONE")
             _methods.clear();
-            break;
-        }
 
         _methods.push_back(method);
     }
@@ -148,6 +151,9 @@ void Location::setUploadStore(std::istringstream &iss) {
 
     if (!S_ISDIR(info.st_mode))
         throw(std::runtime_error("Error in `upload_store`: path is not a directory"));
+
+    if (isMethodAllowed("POST") == false)
+        _methods.push_back("POST");
 
     _uploadStore = rootUploadPath;
 }
