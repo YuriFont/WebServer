@@ -115,23 +115,46 @@ void Server::handleNewConnection()
 
 void Server::handleClientRequest(int client_fd)
 {
+    std::string rawRequest;
     char buffer[2048];
-    int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
+    int bytes = 0;
 
-    if (bytes <= 0)
-    {
+    // leitura inicial
+    bytes = recv(client_fd, buffer, sizeof(buffer), 0);
+    if (bytes <= 0) {
         close(client_fd);
         epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
         std::cout << "Cliente desconectado." << std::endl;
         return;
     }
+    rawRequest.append(buffer, bytes);
 
-    HttpRequest request(buffer);
+    // verifica se já temos \r\n\r\n (fim dos headers)
+    size_t headerEnd = rawRequest.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        // headers incompletos, aguardar mais dados
+        return; // volta pro epoll_wait
+    }
+
+    // parse inicial dos headers para pegar Content-Length
+    HttpRequest tempRequest(rawRequest.c_str());
+    int contentLength = tempRequest.getContentLength(); // implemente esse método
+
+    // se houver body, ler até completar
+    while (rawRequest.size() < headerEnd + 4 + contentLength) {
+        bytes = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (bytes <= 0) break; // desconexão
+        rawRequest.append(buffer, bytes);
+    }
+
+    // agora podemos criar o request completo
+    HttpRequest request(rawRequest.c_str());
+    std::cout << "Requisição recebida: " << request.getBody() << " " << request.getPath() << std::endl;
     const Location &location = findLocation(request);
 
     if (!location.isMethodAllowed(request.getMethod()))
     {
-        //TODO: implementar método não permitido 
+        //TODO: implementar método não permitido
         HttpResponse response = HttpResponse::methodNotAllowed(location.getMethods());
         send(client_fd, response.toString().c_str(), response.toString().size(), 0);
         return;
@@ -139,8 +162,6 @@ void Server::handleClientRequest(int client_fd)
 
     RequestHandler handler(_config);
     HttpResponse response = handler.handle(request, location);
-    // (void)response;
-    //TODO: enviar resposta ao cliente
     std::cout <<  response.toString() << std::endl;
     send(client_fd, response.toString().c_str(), response.toString().size(), 0);
 }

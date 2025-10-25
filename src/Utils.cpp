@@ -133,3 +133,13 @@ std::string Utils::generateAutoindex(const std::string &dirPath, const std::stri
     html += "</ul></body></html>";
     return html;
 }
+
+bool Utils::writeFile(const std::string &path, const std::string &data)
+{
+    std::ofstream outFile(path.c_str(), std::ios::binary);
+    if (!outFile.is_open())
+        return false;
+
+    outFile.write(data.c_str(), data.size());
+    return outFile.good();
+}
