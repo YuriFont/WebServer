@@ -155,13 +155,14 @@ void Server::handleClientRequest(int client_fd)
     if (!location.isMethodAllowed(request.getMethod()))
     {
         //TODO: implementar método não permitido
-        /*HttpResponse response = HttpResponse::methodNotAllowed();
-        send(client_fd, response.toString().c_str(), response.toString().size(), 0);*/
+        HttpResponse response = HttpResponse::methodNotAllowed(location.getMethods());
+        send(client_fd, response.toString().c_str(), response.toString().size(), 0);
         return;
     }
 
     RequestHandler handler(_config);
     HttpResponse response = handler.handle(request, location);
+    std::cout <<  response.toString() << std::endl;
     send(client_fd, response.toString().c_str(), response.toString().size(), 0);
 }
 

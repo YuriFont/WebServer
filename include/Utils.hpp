@@ -15,6 +15,9 @@ class Utils {
         static int countWords(std::istringstream &iss);
         static bool isValidUrl(const std::string &url);
         static std::string getContentType(const std::string& path);
+        static std::string buildPathRequisition(const std::string& locationPath, const std::string& rootPath, const std::string& requestPath);
+        static bool readFile(const std::string &path, std::string &out);
+        static std::string generateAutoindex(const std::string &dirPath, const std::string &urlPath);
         static bool writeFile(const std::string &path, const std::string &data);
 };
 
