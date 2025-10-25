@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <arpa/inet.h>
+#include <dirent.h>
 
 #define RESET   "\033[0m"
 #define GREEN   "\033[32m"

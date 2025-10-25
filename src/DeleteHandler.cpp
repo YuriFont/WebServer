@@ -1,8 +1,6 @@
 #include "../include/DeleteHandler.hpp"
 #include "../include/Utils.hpp"
 
-#include <sys/stat.h>
-
 HttpResponse DeleteHandler::process(HttpRequest &request, const Location &location)
 {
     // Implementação do DELETE ficará aqui
