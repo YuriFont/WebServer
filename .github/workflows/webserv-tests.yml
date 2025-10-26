@@ -27,20 +27,20 @@ jobs:
       working-directory: tests
       run: |
         echo "🚀 Rodando testes GET..."
-        bash test_get.sh
+        bash get_test.sh
 
     - name: Run DELETE tests
       working-directory: tests
       run: |
         echo "🚀 Rodando testes DELETE..."
-        bash test_delete.sh
+        bash delete_test.sh
 
 
     - name: Run POST tests
       working-directory: tests
       run: |
         echo "🚀 Rodando testes POST..."
-        bash test_post.sh
+        bash post_test.sh
 
     - name: Upload logs (if any)
       if: always()
