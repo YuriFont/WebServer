@@ -21,7 +21,7 @@ jobs:
     - name: Build server
       run: |
         make re
-        test -f webserv || { echo "❌ Compilação falhou"; exit 1; }
+        test -f ./bin/webserv || { echo "❌ Compilação falhou"; exit 1; }
 
     - name: Run GET tests
       working-directory: tests
