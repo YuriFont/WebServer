@@ -36,7 +36,6 @@ HttpRequest::HttpRequest(const char *buffer): _buffer(buffer) {
     }
 }
 
-
 HttpRequest::~HttpRequest() {};
 
 const std::string& HttpRequest::getHttpVersion() const {

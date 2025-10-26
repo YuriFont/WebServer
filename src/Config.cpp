@@ -198,5 +198,22 @@ void Config::_parseLocation(std::istringstream &iss) {
             throw std::runtime_error("Unknown directive in location block: " + line + " in " + _filePath);
     }
 
+    if (location.getMethods().empty()) {
+        std::istringstream iss("GET POST DELETE");
+        location.setMethods(iss);
+    }
+
+    if (locations.find(location.getPath()) != locations.end())
+        throw std::runtime_error("Duplicate location path: " + location.getPath() + " in " + _filePath);
+
+    if (location.isMethodAllowed("GET") && location.getRoot().empty() && location.getRedirect().empty())
+        throw std::runtime_error("No root and redirecion defined for location: " + location.getPath() + " in " + _filePath);
+
+    if (location.isMethodAllowed("POST") && location.getUploadStore().empty() && location.getRoot().empty() && location.getRedirect().empty())
+        throw std::runtime_error("POST method requires upload_store or root to be set for location: " + location.getPath() + " in " + _filePath);
+
+    if (location.isMethodAllowed("POST") == false && location.isUploadEnabled())
+        throw(std::runtime_error("POST method must be allowed for uploads in location: " + location.getPath() + " in " + _filePath));
+
     locations[location.getPath()] = location;
 }
