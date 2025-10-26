@@ -122,8 +122,8 @@ void Server::handleClientRequest(int client_fd)
     // leitura inicial
     bytes = recv(client_fd, buffer, sizeof(buffer), 0);
     if (bytes <= 0) {
-        close(client_fd);
         epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
+        close(client_fd);
         std::cout << "Cliente desconectado." << std::endl;
         return;
     }
@@ -140,6 +140,7 @@ void Server::handleClientRequest(int client_fd)
     HttpRequest tempRequest(rawRequest.c_str());
     int contentLength = tempRequest.getContentLength(); // implemente esse método
 
+    // Esse while pode tornar o servidor bloqueante para novas conexões, melhor guardar os dados em uma classe do cliente
     // se houver body, ler até completar
     while (rawRequest.size() < headerEnd + 4 + contentLength) {
         bytes = recv(client_fd, buffer, sizeof(buffer), 0);
@@ -149,8 +150,10 @@ void Server::handleClientRequest(int client_fd)
 
     // agora podemos criar o request completo
     HttpRequest request(rawRequest.c_str());
-    std::cout << "Requisição recebida: " << request.getBody() << " " << request.getPath() << std::endl;
     const Location &location = findLocation(request);
+
+    // LOG
+    std::cout << request.getMethod() << " " << request.getPath() << " " << request.getHttpVersion() << std::endl;
 
     if (!location.isMethodAllowed(request.getMethod()))
     {
@@ -162,7 +165,6 @@ void Server::handleClientRequest(int client_fd)
 
     RequestHandler handler(_config);
     HttpResponse response = handler.handle(request, location);
-    std::cout <<  response.toString() << std::endl;
     send(client_fd, response.toString().c_str(), response.toString().size(), 0);
 }
 

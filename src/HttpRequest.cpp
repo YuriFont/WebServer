@@ -34,10 +34,7 @@ HttpRequest::HttpRequest(const char *buffer): _buffer(buffer) {
         std::string value = Utils::trim(lines[i].substr(pos + 1));
         _headers[key] = value;
     }
-
-    std::cout << _method << " " << _path << " " << _httpVersion << " | Body length: " << _body.size() << std::endl;
 }
-
 
 HttpRequest::~HttpRequest() {};
 

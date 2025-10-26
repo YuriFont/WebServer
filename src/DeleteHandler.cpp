@@ -14,8 +14,13 @@ HttpResponse DeleteHandler::process(HttpRequest &request, const Location &locati
     response.setConnectionClose(true);
 
     if (stat(path.c_str(), &info) != 0) {
-        // retornar 404, não existe
-        response.setStatus(404);
+
+        if (errno == EACCES)
+            response.setStatus(403);
+        else if (errno == ENOENT)
+            response.setStatus(404);
+        else
+            response.setStatus(500);
     } else if (S_ISDIR(info.st_mode)) {
         // retornar not allow 403, diretorio ou permissao
         response.setStatus(403);
@@ -23,7 +28,10 @@ HttpResponse DeleteHandler::process(HttpRequest &request, const Location &locati
         // se der error ao remover mandar 500;
         response.setStatus(204);
     } else {
-        response.setStatus(500);
+       if (errno == EACCES || errno == EPERM)
+            response.setStatus(403);
+        else
+            response.setStatus(500);
     }
 
     return (response);
