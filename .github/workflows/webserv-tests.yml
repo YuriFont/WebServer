@@ -1,0 +1,50 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Make scripts executable
+      run: chmod +x tests/*_test.sh
+    
+    - name: Build server
+      run: |
+        make re
+        test -f ./bin/webserv || { echo "❌ Compilação falhou"; exit 1; }
+
+    - name: Run GET tests
+      working-directory: tests
+      run: |
+        echo "🚀 Rodando testes GET..."
+        bash get_test.sh
+
+    - name: Run DELETE tests
+      working-directory: tests
+      run: |
+        echo "🚀 Rodando testes DELETE..."
+        bash delete_test.sh
+
+
+    - name: Run POST tests
+      working-directory: tests
+      run: |
+        echo "🚀 Rodando testes POST..."
+        bash post_test.sh
+
+    - name: Upload logs (if any)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: webserv-logs
+        path: tests/logs/
