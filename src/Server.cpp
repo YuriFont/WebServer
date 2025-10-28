@@ -127,6 +127,8 @@ void Server::handleClientRequest(int client_fd)
         std::cout << "Cliente desconectado." << std::endl;
         return;
     }
+
+    buffer[bytes] = '\0';
     rawRequest.append(buffer, bytes);
 
     // verifica se já temos \r\n\r\n (fim dos headers)
@@ -144,7 +146,9 @@ void Server::handleClientRequest(int client_fd)
     // se houver body, ler até completar
     while (rawRequest.size() < headerEnd + 4 + contentLength) {
         bytes = recv(client_fd, buffer, sizeof(buffer), 0);
-        if (bytes <= 0) break; // desconexão
+        if (bytes <= 0)
+            break; // desconexão
+        buffer[bytes] = '\0';
         rawRequest.append(buffer, bytes);
     }
 
