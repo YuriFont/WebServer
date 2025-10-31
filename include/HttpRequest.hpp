@@ -18,6 +18,7 @@ class HttpRequest {
 
     public:
 
+        HttpRequest();
         HttpRequest(const char *buffer);
         ~HttpRequest();
 
@@ -28,4 +29,6 @@ class HttpRequest {
         const std::string& getBody() const;
         const std::string& getQueryString() const;
         int getContentLength() const;
+        void appendBuffer(const std::string& buffer);
+        void clearAllData();
 };

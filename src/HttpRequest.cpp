@@ -5,6 +5,10 @@
 #include "../include/Utils.hpp"
 #include <exception>
 
+HttpRequest::HttpRequest() {
+
+};
+
 HttpRequest::HttpRequest(const char *buffer): _buffer(buffer) {
     std::string req(buffer);
     
@@ -75,3 +79,18 @@ int HttpRequest::getContentLength() const {
     std::string value = it->second;
     return std::atoi(value.c_str());
 }
+
+
+void HttpRequest::appendBuffer(const std::string& buffer) {
+    this->_buffer.append(buffer);
+};
+
+void HttpRequest::clearAllData() {
+    this->_buffer.erase();
+    this->_method.erase();
+    this->_path.erase();
+    this->_httpVersion.erase();
+    this->_headers.erase(this->_headers.begin(), this->_headers.end());
+    this->_body.erase();
+    this->_queryString.erase();
+};
