@@ -40,6 +40,36 @@ HttpRequest::HttpRequest(const char *buffer): _buffer(buffer) {
     }
 }
 
+void HttpRequest::parser() {
+    
+    // encontrar o fim dos headers
+    size_t headerEnd = this->_buffer.find("\r\n\r\n");
+    std::string headersPart = this->_buffer.substr(0, headerEnd);
+    _body = (headerEnd != std::string::npos) ? this->_buffer.substr(headerEnd + 4) : "";
+
+    std::vector<std::string> lines;
+    std::stringstream ss(headersPart);
+    std::string aux;
+
+    while (getline(ss, aux, '\n')) {
+        lines.push_back(Utils::trim(aux));
+    }
+
+    // primeira linha → método, caminho e versão
+    std::stringstream firstLine(lines[0]);
+    firstLine >> _method >> _path >> _httpVersion;
+
+    // headers
+    for (size_t i = 1; i < lines.size(); i++) {
+        size_t pos = lines[i].find(':');
+        if (pos == std::string::npos) continue;
+
+        std::string key = Utils::trim(lines[i].substr(0, pos));
+        std::string value = Utils::trim(lines[i].substr(pos + 1));
+        _headers[key] = value;
+    }
+};
+
 HttpRequest::~HttpRequest() {};
 
 const std::string& HttpRequest::getHttpVersion() const {
@@ -85,7 +115,13 @@ void HttpRequest::appendBuffer(const std::string& buffer) {
     this->_buffer.append(buffer);
 };
 
+void HttpRequest::appendBody(const std::string& body) {
+
+    this->_body.append(body);
+};
+
 void HttpRequest::clearAllData() {
+    
     this->_buffer.erase();
     this->_method.erase();
     this->_path.erase();

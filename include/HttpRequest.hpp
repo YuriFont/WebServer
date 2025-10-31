@@ -30,5 +30,7 @@ class HttpRequest {
         const std::string& getQueryString() const;
         int getContentLength() const;
         void appendBuffer(const std::string& buffer);
+        void appendBody(const std::string& body);
         void clearAllData();
+        void parser();
 };

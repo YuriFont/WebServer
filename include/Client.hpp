@@ -12,6 +12,7 @@ class Client {
         int client_fd;
         int contentLength;
         bool isHeadersReceived;
+        bool isHeadersParsed;
         epoll_event event;
         HttpRequest request;
 
@@ -22,5 +23,6 @@ class Client {
         epoll_event& getDataEvent();
         void addBody(const std::string& request);
         bool isAllHeaders();
+        int getLenBody();
         void cleanData();
 };
