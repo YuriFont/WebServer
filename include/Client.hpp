@@ -17,11 +17,16 @@ class Client {
         HttpRequest request;
 
     public:
-
+    
+        Client();
         Client(const int& client_fd);
+        Client(const Client& client);
+        Client& operator=(const Client& other);
         ~Client();
         epoll_event& getDataEvent();
-        void addBody(const std::string& request);
+        void addBuffer(const std::string& request);
+        void addBody(const std::string& body);
+        HttpRequest& getRequest();
         bool isAllHeaders();
         int getLenBody();
         void cleanData();

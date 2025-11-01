@@ -28,6 +28,7 @@ class HttpRequest {
         const std::string& getHeader(const std::string &key) const;
         const std::string& getBody() const;
         const std::string& getQueryString() const;
+        const std::string& getBuffer() const;
         int getContentLength() const;
         void appendBuffer(const std::string& buffer);
         void appendBody(const std::string& body);

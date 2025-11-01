@@ -45,7 +45,6 @@ void HttpRequest::parser() {
     // encontrar o fim dos headers
     size_t headerEnd = this->_buffer.find("\r\n\r\n");
     std::string headersPart = this->_buffer.substr(0, headerEnd);
-    _body = (headerEnd != std::string::npos) ? this->_buffer.substr(headerEnd + 4) : "";
 
     std::vector<std::string> lines;
     std::stringstream ss(headersPart);
@@ -68,6 +67,9 @@ void HttpRequest::parser() {
         std::string value = Utils::trim(lines[i].substr(pos + 1));
         _headers[key] = value;
     }
+
+    if (this->getContentLength() > 0)
+        _body = (headerEnd != std::string::npos) ? this->_buffer.substr(headerEnd + 4) : "";
 };
 
 HttpRequest::~HttpRequest() {};
@@ -92,6 +94,10 @@ const std::string& HttpRequest::getHeader(const std::string &key) const {
         return it->second;
     }
     return NULL;
+};
+
+const std::string& HttpRequest::getBuffer() const {
+    return this->_buffer;
 };
 
 const std::string& HttpRequest::getBody() const {
