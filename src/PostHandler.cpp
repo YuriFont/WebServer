@@ -6,6 +6,16 @@ HttpResponse PostHandler::process(HttpRequest &request, const Location &location
     std::string contentType = request.getHeader("Content-Type");
     std::string body = request.getBody();
     HttpResponse response;
+    
+
+    if (contentType == "image/jpeg") {
+        std::string uploadPath = location.getUploadStore() + "/upload_" + Utils::toString(1) + ".jpg";
+        Utils::writeFile(uploadPath, body);
+        response.setStatus(201);
+        response.setContentType("text/html");
+        response.setBody("File uploaded successfully to " + uploadPath);
+        return response;
+    }
 
     // diferenciar comportamento baseado no Content-Type
     if (contentType == "application/x-www-form-urlencoded") {
