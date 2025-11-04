@@ -87,13 +87,14 @@ const std::string& HttpRequest::getPath() const {
 };
 
 const std::string& HttpRequest::getHeader(const std::string &key) const {
-
     const std::map<std::string, std::string>::const_iterator it = this->_headers.find(key);
 
     if (it != this->_headers.end()) {
         return it->second;
     }
-    return NULL;
+
+    static const std::string empty = "";
+    return empty;
 };
 
 const std::string& HttpRequest::getBuffer() const {
