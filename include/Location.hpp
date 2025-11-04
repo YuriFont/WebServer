@@ -15,6 +15,7 @@ class Location {
         const std::vector<std::string>& getIndex() const;
         bool isAutoindex() const;
         std::string getRedirect() const;
+        int getRedirectCode() const;
         bool isUploadEnabled() const;
         std::string getUploadStore() const;
         const std::map<std::string, std::string>& getCgi() const;

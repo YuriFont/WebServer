@@ -29,6 +29,12 @@ std::string Location::getRedirect() const {
     return _redirect;
 }
 
+int Location::getRedirectCode() const {
+    if (_redirectCode == 0)
+        return 302; // valor padrão
+    return _redirectCode;
+}
+
 bool Location::isUploadEnabled() const {
     return _upload_enable;
 }
@@ -118,18 +124,23 @@ void Location::setRedirect(std::istringstream &iss) {
 
     if (wordCount == 3) {
         iss >> statusCode;
-        if (statusCode != "301" && statusCode != "302")
+        const std::string validCodes[] = {"300", "301", "302", "303", "307", "308"};
+        bool valid = false;
+        for (int i = 0; i < 6; i++){
+            if(statusCode == validCodes[i]){
+                valid = true;
+                break;
+            }
+        }
+        if (!valid)
             throw std::runtime_error("Invalid status code for redirect: " + statusCode);
         _redirectCode = std::atoi(statusCode.c_str());
     }
     else
         _redirectCode = 302;
-
     iss >> url;
-
     if (!Utils::isValidUrl(url))
         throw std::runtime_error("Invalid URL for redirect: " + url);
-
     _redirect = url;
 }
 
