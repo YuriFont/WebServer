@@ -1,24 +1,19 @@
 #!/bin/bash
 
-# Configuração
 SERVER_BINARY=./bin/webserv
 CONF_FILE=./config/test.conf
 PORT=8080
 LOGFILE="tests/logs/redirect_test.log"
 mkdir -p tests/logs
 
-# Mudar para o diretório raiz para que 'make' e './bin/webserv' funcionem
 cd ..
 
-# Compilação e Verificação
 make re >/dev/null || { echo "❌ Falha na compilação"; exit 1; }
 
-# Iniciar o servidor em segundo plano
 $SERVER_BINARY "$CONF_FILE" > "$LOGFILE" &
 PID=$!
 sleep 1
 
-# Função para matar o servidor e sair
 exit_program() {
     CODE=$1
     if [ ! -z "$PID" ] && ps -p $PID > /dev/null; then

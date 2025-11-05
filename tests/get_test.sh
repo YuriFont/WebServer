@@ -14,7 +14,7 @@ cd ..
 make re >/dev/null || { echo "❌ Falha na compilação"; exit 1; }
 
 # Iniciar o servidor em segundo plano
-$SERVER_BINARY "$CONF_FILE" > "$LOGFILE" &
+$SERVER_BINARY "$CONF_FILE" &
 PID=$!
 sleep 1
 
