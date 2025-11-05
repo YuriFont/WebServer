@@ -1,9 +1,6 @@
 #include "../include/Client.hpp"
 #include "../include/Utils.hpp"
 
-
-
-
 Client::Client() {
     this->contentLength = 0;
     this->client_fd = -1;

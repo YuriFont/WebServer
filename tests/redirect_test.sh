@@ -1,24 +1,19 @@
 #!/bin/bash
 
-# Configuração
 SERVER_BINARY=./bin/webserv
 CONF_FILE=./config/test.conf
 PORT=8080
 LOGFILE="tests/logs/redirect_test.log"
 mkdir -p tests/logs
 
-# Mudar para o diretório raiz para que 'make' e './bin/webserv' funcionem
 cd ..
 
-# Compilação e Verificação
 make re >/dev/null || { echo "❌ Falha na compilação"; exit 1; }
 
-# Iniciar o servidor em segundo plano
-$SERVER_BINARY "$CONF_FILE" &
+$SERVER_BINARY "$CONF_FILE" > "$LOGFILE" &
 PID=$!
 sleep 1
 
-# Função para matar o servidor e sair
 exit_program() {
     CODE=$1
     if [ ! -z "$PID" ] && ps -p $PID > /dev/null; then
@@ -28,14 +23,19 @@ exit_program() {
     exit $CODE
 }
 
-echo "🔄 Testes de Redirecionamento Simplificados (Apenas Externo)"
+echo "🔄 Teste de Redirecionamento Externo (302) Simplificado"
 
 # --- Variáveis de Teste ---
+# Teste Externo: /oldpage -> https://google.com/ (302)
 REDIRECT_EXTERNAL_SOURCE="/oldpage"
 REDIRECT_EXTERNAL_DESTINATION="https://google.com/"
 EXPECTED_STATUS_EXTERNAL="302"
 
-# Função de Teste Centralizada (sem alterações)
+# Função de Teste Centralizada
+# $1: URL de origem
+# $2: Status esperado (302)
+# $3: URL de destino esperada
+# $4: Nome do teste
 run_redirect_test() {
     local SOURCE=$1
     local EXPECTED_STATUS=$2
@@ -45,9 +45,13 @@ run_redirect_test() {
     echo ""
     echo "--- $TEST_NAME ($EXPECTED_STATUS) ---"
 
+    # Faz a requisição e captura o status e o cabeçalho Location
     INFO=$(curl -s -o /dev/null -w "STATUS:%{http_code}\nURL:%{redirect_url}" http://localhost:$PORT$SOURCE)
     
+    # Extrai o status
     STATUS=$(echo "$INFO" | grep "STATUS:" | cut -d ':' -f 2 | tr -d '\n' | xargs)
+    
+    # Extrai a URL
     URL=$(echo "$INFO" | grep "URL:" | cut -d ':' -f 2- | tr -d '\n' | xargs)
 
     if [ "$STATUS" = "$EXPECTED_STATUS" ] && [ "$URL" = "$EXPECTED_DESTINATION" ]; then
@@ -71,5 +75,5 @@ run_redirect_test \
 
 # Limpeza e Sucesso
 echo ""
-echo "✨ Teste de redirecionamento externo concluído com sucesso!"
+echo "✨ Teste de redirecionamento concluído com sucesso!"
 exit_program 0

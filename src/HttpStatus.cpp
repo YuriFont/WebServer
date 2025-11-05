@@ -50,11 +50,9 @@ HttpStatus::HttpStatus() {
 };
 
 HttpStatus::~HttpStatus() {
-
 };
 
 const std::string& HttpStatus::getHttpStatusMensager(const int& status) const {
-
     static const std::string unknown = "Unknown Status Code";
 
     if (httpStatusMap.count(status))
@@ -72,6 +70,5 @@ void HttpStatus::setCodeStatus(const int& codeStatus) {
 };
 
 const std::string HttpStatus::makeResponseStatus() {
-
     return (Utils::toString(this->codeStatus) + " " + this->getHttpStatusMensager(this->codeStatus));
 }
