@@ -1,9 +1,6 @@
 #include "../include/Client.hpp"
 #include "../include/Utils.hpp"
 
-
-
-
 Client::Client() {
     this->contentLength = 0;
     this->client_fd = -1;
@@ -11,12 +8,11 @@ Client::Client() {
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
 };
-Client::~Client() {
 
+Client::~Client() {
 };
 
 Client::Client(const int& client_fd) {
-
     this->client_fd = client_fd;
     this->event.data.fd = client_fd;
     this->event.events = EPOLLIN;
@@ -25,13 +21,10 @@ Client::Client(const int& client_fd) {
 };
 
 Client::Client(const Client& client) {
-
     *this = client;
-    
 };
 
 Client& Client::operator=(const Client& other) {
-
     if (this != &other) {
         this->client_fd = other.client_fd;
         this->contentLength = other.contentLength;
@@ -48,11 +41,9 @@ epoll_event& Client::getDataEvent() {
 };
 
 void Client::addBuffer(const std::string& request) {
-
     this->request.appendBuffer(request);
     if (!this->isHeadersReceived) {
         if (request.find("\r\n\r\n") != std::string::npos) {
-
             this->isHeadersReceived = true;
             this->request.parser();
             this->contentLength = this->request.getContentLength();
@@ -62,7 +53,6 @@ void Client::addBuffer(const std::string& request) {
 };
 
 void Client::addBody(const std::string& body) {
-
     this->request.appendBody(body);
 };
 
@@ -73,7 +63,6 @@ bool Client::isAllHeaders() {
 }
 
 int Client::getLenBody() {
-
     return this->contentLength;
 }
 
@@ -82,7 +71,6 @@ HttpRequest& Client::getRequest() {
 };
 
 void Client::cleanData() {
-
     this->contentLength = 0;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
