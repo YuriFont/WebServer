@@ -8,6 +8,7 @@ Client::Client() {
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
 };
+
 Client::~Client() {
 
 };
