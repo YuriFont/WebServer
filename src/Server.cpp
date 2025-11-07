@@ -15,8 +15,8 @@ const Location &Server::findLocation(HttpRequest &request)
     std::string match = "/";
     size_t longestMatch = 0;
 
-    for (std::map<std::string, Location>::const_iterator it = _config.locations.begin();
-         it != _config.locations.end(); ++it)
+    for (std::map<std::string, Location>::const_iterator it = _config.servers[0].locations.begin();
+         it != _config.servers[0].locations.end(); ++it)
     {
         if (path.compare(0, it->first.size(), it->first) == 0 && it->first.size() > longestMatch)
         {
@@ -25,8 +25,8 @@ const Location &Server::findLocation(HttpRequest &request)
         }
     }
 
-    std::map<std::string, Location>::const_iterator found = _config.locations.find(match);
-    if (found == _config.locations.end())
+    std::map<std::string, Location>::const_iterator found = _config.servers[0].locations.find(match);
+    if (found == _config.servers[0].locations.end())
         throw std::runtime_error("Nenhum location encontrado para path: " + path);
     return found->second;
 }
@@ -53,12 +53,12 @@ void Server::initSocket()
     struct sockaddr_in addr;
     std::memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(_config.port);
-    addr.sin_addr.s_addr = inet_addr(_config.ip.c_str());
+    addr.sin_port = htons(_config.servers[0].port);
+    addr.sin_addr.s_addr = inet_addr(_config.servers[0].ip.c_str());
 
     if (addr.sin_addr.s_addr == INADDR_NONE)
     {
-        std::cerr << "IP inválido: " << _config.ip << std::endl;
+        std::cerr << "IP inválido: " << _config.servers[0].ip << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -78,7 +78,7 @@ void Server::startListenServer()
         close(this->server_fd);
         exit(EXIT_FAILURE);
     }
-    std::cout << "Servidor escutando na porta " << _config.port << "..." << std::endl;
+    std::cout << "Servidor escutando na porta " << _config.servers[0].port << "..." << std::endl;
 }
 
 void Server::createEpoll()

@@ -3,14 +3,16 @@
 #include "Location.hpp"
 
 class ServerConfig{
-    private:
+    public:
+        std::string server_name;
         std::string ip;
         int port;
-        int socked_fd;
+        int socket_fd;
+        std::map<int, std::string> error_pages;
+        size_t client_max_body_size;
         std::map<std::string, Location> locations;
-    public:
+
         ServerConfig();
-        ServerConfig(const std::string &ip, int port, const std::map<std::string, Location> locs);
         ServerConfig(const ServerConfig& server);
         ServerConfig& operator=(const ServerConfig& other);
         ~ServerConfig();

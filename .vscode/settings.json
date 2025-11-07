@@ -50,6 +50,8 @@
         "ctime": "cpp",
         "map": "cpp",
         "iomanip": "cpp",
-        "ratio": "cpp"
+        "ratio": "cpp",
+        "hash_map": "cpp",
+        "list": "cpp"
     }
 }

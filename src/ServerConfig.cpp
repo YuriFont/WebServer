@@ -1,8 +1,13 @@
 #include "../include/ServerConfig.hpp"
 
-ServerConfig::ServerConfig(): ip("127.0.0.1"), port(8080), socket_fd(-1){}
-
-ServerConfig::ServerConfig(const std::string &ip, int port, const std::map<std::string, Location> &locs): ip(ip), port(port), locations(locs), socket_fd(-1) {}
+ServerConfig::ServerConfig() {
+    this->server_name = "";
+    this->ip = "";
+    this->port = 0;
+    this->error_pages = std::map<int, std::string>();
+    this->client_max_body_size = 0;
+    this->locations = std::map<std::string, Location>();
+}
 
 ServerConfig::~ServerConfig() {
 }
@@ -13,9 +18,12 @@ ServerConfig::ServerConfig(const ServerConfig& server) {
 
 ServerConfig& ServerConfig::operator=(const ServerConfig& other) {
     if (this != &other) {
+        this->server_name = other.server_name;
         this->ip = other.ip;
         this->port = other.port;
-        this->socked_fd = other.socked_fd;
+        this->error_pages = other.error_pages;
+        this->client_max_body_size = other.client_max_body_size;
+        this->socket_fd = other.socket_fd;
         this->locations = other.locations;
     }
     return *this;
@@ -37,7 +45,7 @@ int ServerConfig::getPort() const{
     return this->port;
 }
 
-int initSocket() {
+int ServerConfig::initSocket() {
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1){
         std::cerr << "Erro no socket: " << strerror(errno) << std::endl;
@@ -58,7 +66,7 @@ int initSocket() {
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
     if (addr.sin_addr.s_addr == INADDR_NONE)
     {
-        std::cerr << "IP inválido: " << _config.ip << std::endl;
+        std::cerr << "IP inválido: " << ip << std::endl;
         exit(EXIT_FAILURE);
     }
     if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
