@@ -47,6 +47,7 @@ HttpResponse GetHandler::process(HttpRequest &request, const Location &location)
     //Se for diretório
     if(S_ISDIR(info.st_mode)){
         response = GetHandler::isDir(path, request, location, info, response);
+        return response;
     }
     //Se for um arquivo normal
     std::string body;
