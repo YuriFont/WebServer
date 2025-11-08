@@ -72,7 +72,7 @@ void Server::initSocket()
 
 void Server::startListenServer()
 {
-    if (listen(this->server_fd, 5) < 0)
+    if (listen(this->server_fd, SOMAXCONN) < 0)
     {
         std::cerr << "Erro no listen: " << strerror(errno) << std::endl;
         close(this->server_fd);
@@ -143,7 +143,6 @@ void Server::handleClientRequest(int client_fd)
         client.addBody(std::string(buffer, bytes));
     }
 
-
     if (!client.isAllHeaders())
         return ;
     if (client.getLenBody() > ((int)client.getRequest().getBody().size()))
@@ -167,6 +166,11 @@ void Server::handleClientRequest(int client_fd)
     RequestHandler handler(_config);
     HttpResponse response = handler.handle(request, location);
     send(client_fd, response.toString().c_str(), response.toString().size(), 0);
+    if (response.isConnectionClose()) {
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
+        close(client_fd);
+        clients.erase(client_fd);
+    }
 }
 
 void Server::eventLoop()

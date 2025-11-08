@@ -13,6 +13,8 @@ void HttpResponse::setStatus(const int& statusCode) {
 
 void HttpResponse::setHttpVersion(const std::string& httpVersion) {
     this->httpVersion = httpVersion;
+    if (httpVersion == "HTTP/1.0")
+        this->setConnectionClose(true);
 };
 
 void HttpResponse::setContentType(const std::string& contentType) {
@@ -31,6 +33,10 @@ void HttpResponse::setBody(const std::string& body) {
 void HttpResponse::setConnectionClose(bool connectionClose) {
     this->connectionClose = connectionClose;
 }
+
+bool HttpResponse::isConnectionClose() {
+    return this->connectionClose;
+};
 
 int HttpResponse::getContentLength() {
     return this->contentLength;
