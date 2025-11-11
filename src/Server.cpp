@@ -72,7 +72,7 @@ void Server::initSocket()
 
 void Server::startListenServer()
 {
-    if (listen(this->server_fd, 5) < 0)
+    if (listen(this->server_fd, SOMAXCONN) < 0)
     {
         std::cerr << "Erro no listen: " << strerror(errno) << std::endl;
         close(this->server_fd);
@@ -105,17 +105,17 @@ void Server::handleNewConnection()
 
     fcntl(client_fd, F_SETFL, O_NONBLOCK);
 
-    epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = client_fd;
-    epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
+    //malocar para evitar copias, necessario liberar no destrutor depois
+    Client client(client_fd);
 
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, client_fd, &client.getDataEvent());
+
+    clients[client_fd] = client;
     std::cout << "Cliente conectado!" << std::endl;
 }
 
 void Server::handleClientRequest(int client_fd)
 {
-    std::string rawRequest;
     char buffer[2048];
     int bytes = 0;
 
@@ -124,36 +124,32 @@ void Server::handleClientRequest(int client_fd)
     if (bytes <= 0) {
         epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
         close(client_fd);
+        clients.erase(client_fd);
         std::cout << "Cliente desconectado." << std::endl;
         return;
     }
 
-    buffer[bytes] = '\0';
-    rawRequest.append(buffer, bytes);
+    // Sempre vai encontrar
+    std::map<int, Client>::iterator iterator = clients.find(client_fd);
+    if (iterator == clients.end()) {
+        // thow exception, nunca vai acontecer, cliente ja chega aqui conectado
+        return ;
+    }
+    Client& client = iterator->second;
 
-    // verifica se já temos \r\n\r\n (fim dos headers)
-    size_t headerEnd = rawRequest.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        // headers incompletos, aguardar mais dados
-        return; // volta pro epoll_wait
+    if (!client.isAllHeaders()) {
+        client.addBuffer(std::string(buffer, bytes));
+    } else {
+        client.addBody(std::string(buffer, bytes));
     }
 
-    // parse inicial dos headers para pegar Content-Length
-    HttpRequest tempRequest(rawRequest.c_str());
-    int contentLength = tempRequest.getContentLength(); // implemente esse método
-
-    // Esse while pode tornar o servidor bloqueante para novas conexões, melhor guardar os dados em uma classe do cliente
-    // se houver body, ler até completar
-    while (rawRequest.size() < headerEnd + 4 + contentLength) {
-        bytes = recv(client_fd, buffer, sizeof(buffer), 0);
-        if (bytes <= 0)
-            break; // desconexão
-        buffer[bytes] = '\0';
-        rawRequest.append(buffer, bytes);
-    }
+    if (!client.isAllHeaders())
+        return ;
+    if (client.getLenBody() > ((int)client.getRequest().getBody().size()))
+        return ;
 
     // agora podemos criar o request completo
-    HttpRequest request(rawRequest.c_str());
+    HttpRequest& request = client.getRequest();
     const Location &location = findLocation(request);
 
     // LOG
@@ -170,6 +166,11 @@ void Server::handleClientRequest(int client_fd)
     RequestHandler handler(_config);
     HttpResponse response = handler.handle(request, location);
     send(client_fd, response.toString().c_str(), response.toString().size(), 0);
+    if (response.isConnectionClose()) {
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
+        close(client_fd);
+        clients.erase(client_fd);
+    }
 }
 
 void Server::eventLoop()

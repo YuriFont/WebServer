@@ -8,6 +8,7 @@ Client::Client() {
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
 };
+
 Client::~Client() {
 
 };
@@ -48,7 +49,7 @@ void Client::addBuffer(const std::string& request) {
 
     this->request.appendBuffer(request);
     if (!this->isHeadersReceived) {
-        if (request.find("\r\n\r\n") != std::string::npos) {
+        if (this->request.getBuffer().find("\r\n\r\n") != std::string::npos || this->request.getBuffer().find("\n\n") != std::string::npos) {
 
             this->isHeadersReceived = true;
             this->request.parser();

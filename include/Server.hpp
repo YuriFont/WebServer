@@ -5,6 +5,7 @@
 #include "Config.hpp"
 #include <sys/epoll.h>
 #include "HttpStatus.hpp"
+#include "Client.hpp"
 
 class HttpRequest;
 
@@ -15,6 +16,7 @@ class Server {
         void start();
 
     private:
+        std::map<int, Client> clients;
         int server_fd;
         int epoll_fd;
         epoll_event events[10];
