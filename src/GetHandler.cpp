@@ -8,7 +8,7 @@ HttpResponse GetHandler::isDir(const std::string& path, const HttpRequest &reque
         std::string body;
         Utils::readFile(indexPath, body);
         response.setStatus(200);
-        response.setContentType("text/html");
+        response.setContentType(Utils::getContentType(indexPath));
         response.setBody(body);
         return response;
     }

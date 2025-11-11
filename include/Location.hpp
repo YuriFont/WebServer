@@ -28,6 +28,8 @@ class Location {
         void setRedirect(std::istringstream &iss);
         void setUploadEnabled(bool enable);
         void setUploadStore(std::istringstream &iss);
+        bool hasCgiForExtension(const std::string &ext) const;
+        std::string getCgiPathForExtension(const std::string &ext) const;
         void addCgi(std::istringstream &iss);
 
     private:

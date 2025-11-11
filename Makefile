@@ -10,7 +10,8 @@ FILES = Config.cpp \
 		GetHandler.cpp \
 		PostHandler.cpp \
 		DeleteHandler.cpp \
-		Client.cpp
+		Client.cpp \
+		CgiHandler.cpp
 SRC = $(addprefix src/, $(FILES))
 OBJ = $(addprefix obj/, ${FILES:%.cpp=%.o})
 CXX = c++

@@ -9,7 +9,6 @@ RequestHandler::RequestHandler(const Config &config) : _config(config) {}
 HttpResponse RequestHandler::handle(HttpRequest &request, const Location &location)
 {
     //Redirecionamento global (antes de qualquer método)
-
     if (!location.getRedirect().empty()){
         HttpResponse response;
         response.setHttpVersion(request.getHttpVersion());
@@ -19,6 +18,18 @@ HttpResponse RequestHandler::handle(HttpRequest &request, const Location &locati
         response.setConnectionClose(true);
         return response;
     }
+
+    // Detecção de CGI
+    std::string path = request.getPath();
+    std::string::size_type dot = path.find_last_of('.');
+    if (dot != std::string::npos) { //só continua se tiver uma extensão
+        std::string extension = path.substr(dot); //extrai a substring
+        if (location.hasCgiForExtension(extension)) {
+            std::cout << "Entrou" << std::endl;
+            return CgiHandler::process(request, location);
+        }
+    }
+
     std::string method = request.getMethod();
 
     if (method == "GET")
