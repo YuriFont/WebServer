@@ -143,3 +143,11 @@ bool Utils::writeFile(const std::string &path, const std::string &data)
     outFile.write(data.c_str(), data.size());
     return outFile.good();
 }
+char **Utils::vecToCharArray(const std::vector<std::string> &vec)
+{
+    char **arr = new char *[vec.size() + 1];
+    for (size_t i = 0; i < vec.size(); i++)
+        arr[i] = strdup(vec[i].c_str());
+    arr[vec.size()] = NULL;
+    return arr;
+}

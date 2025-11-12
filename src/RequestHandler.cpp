@@ -3,6 +3,7 @@
 #include "../include/PostHandler.hpp"
 #include "../include/DeleteHandler.hpp"
 #include "../include/HttpResponse.hpp"
+#include "../include/CgiHandler.hpp"
 
 RequestHandler::RequestHandler(const Config &config) : _config(config) {}
 
@@ -25,8 +26,7 @@ HttpResponse RequestHandler::handle(HttpRequest &request, const Location &locati
     if (dot != std::string::npos) { //só continua se tiver uma extensão
         std::string extension = path.substr(dot); //extrai a substring
         if (location.hasCgiForExtension(extension)) {
-            std::cout << "Entrou" << std::endl;
-            return CgiHandler::process(request, location);
+            return CgiHandler::process(request, location, extension);
         }
     }
 

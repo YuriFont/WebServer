@@ -180,7 +180,6 @@ std::string Location::getCgiPathForExtension(const std::string &ext) const {
     return "";
 }
 
-
 void Location::addCgi(std::istringstream &iss) {
     std::string extension;
     std::string scriptPath;

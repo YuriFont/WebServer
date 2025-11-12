@@ -21,6 +21,7 @@
 #include <arpa/inet.h>
 #include <ctime>
 #include <dirent.h>
+#include <sys/wait.h>
 
 #define RESET   "\033[0m"
 #define GREEN   "\033[32m"
