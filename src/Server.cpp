@@ -9,189 +9,117 @@
 Server::Server(const Config &config) : _config(config) {}
 Server::~Server() {}
 
-const Location &Server::findLocation(HttpRequest &request)
-{
-    std::string path = request.getPath();
-    std::string match = "/";
-    size_t longestMatch = 0;
-
-    for (std::map<std::string, Location>::const_iterator it = _config.servers[0].locations.begin();
-         it != _config.servers[0].locations.end(); ++it)
-    {
-        if (path.compare(0, it->first.size(), it->first) == 0 && it->first.size() > longestMatch)
-        {
-            longestMatch = it->first.size();
-            match = it->first;
-        }
-    }
-
-    std::map<std::string, Location>::const_iterator found = _config.servers[0].locations.find(match);
-    if (found == _config.servers[0].locations.end())
-        throw std::runtime_error("Nenhum location encontrado para path: " + path);
-    return found->second;
-}
-
-void Server::initSocket()
-{
-    this->server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (this->server_fd == -1)
-    {
-        std::cerr << "Erro no socket: " << strerror(errno) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    fcntl(this->server_fd, F_SETFL, O_NONBLOCK);
-
-    int opt = 1;
-    if (setsockopt(this->server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
-    {
-        std::cerr << "Erro no setsockopt: " << strerror(errno) << std::endl;
-        close(this->server_fd);
-        exit(EXIT_FAILURE);
-    }
-
-    struct sockaddr_in addr;
-    std::memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(_config.servers[0].port);
-    addr.sin_addr.s_addr = inet_addr(_config.servers[0].ip.c_str());
-
-    if (addr.sin_addr.s_addr == INADDR_NONE)
-    {
-        std::cerr << "IP inválido: " << _config.servers[0].ip << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    if (bind(this->server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-    {
-        std::cerr << "Erro no bind: " << strerror(errno) << std::endl;
-        close(this->server_fd);
-        exit(EXIT_FAILURE);
+void Server::initAllSockets() {
+    for (size_t i = 0; i < _config.servers.size(); i++) {
+        ServerConfig sc = _config.servers[i];
+        int fd = sc.initSocket();
+        server_fds.push_back(fd);
+        server_by_fd[fd] = sc;
     }
 }
 
-void Server::startListenServer()
-{
-    if (listen(this->server_fd, 5) < 0)
-    {
-        std::cerr << "Erro no listen: " << strerror(errno) << std::endl;
-        close(this->server_fd);
-        exit(EXIT_FAILURE);
-    }
-    std::cout << "Servidor escutando na porta " << _config.servers[0].port << "..." << std::endl;
-}
-
-void Server::createEpoll()
-{
-    this->epoll_fd = epoll_create(1);
-    if (this->epoll_fd == -1)
-    {
-        std::cerr << "Erro ao criar epoll: " << strerror(errno) << std::endl;
-        exit(EXIT_FAILURE);
+void Server::registerSocketsInEpoll() {
+    epoll_fd = epoll_create(1);
+    if (epoll_fd == -1) {
+        perror("epoll_create");
+        exit(1);
     }
 
-    epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = this->server_fd;
-
-    epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, this->server_fd, &ev);
+    for (size_t i = 0; i < server_fds.size(); i++) {
+        epoll_event ev;
+        ev.events = EPOLLIN;
+        ev.data.fd = server_fds[i];
+        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fds[i], &ev);
+    }
 }
 
-void Server::handleNewConnection()
-{
-    int client_fd = accept(this->server_fd, NULL, NULL);
-    if (client_fd == -1)
-        return;
+void Server::handleNewConnection(int server_fd) {
+    int client_fd = accept(server_fd, NULL, NULL);
+    if (client_fd < 0) return;
 
     fcntl(client_fd, F_SETFL, O_NONBLOCK);
 
     epoll_event ev;
     ev.events = EPOLLIN;
     ev.data.fd = client_fd;
-    epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
 
-    std::cout << "Cliente conectado!" << std::endl;
+    client_server[client_fd] = &server_by_fd[server_fd];
+
+    std::cout << "Novo cliente no server " << server_by_fd[server_fd].getPort() << std::endl;
 }
 
-void Server::handleClientRequest(int client_fd)
-{
-    std::string rawRequest;
-    char buffer[2048];
-    int bytes = 0;
+const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &request) {
+    const std::map<std::string, Location> &locs = serverCfg->getLocations();
 
-    // leitura inicial
-    bytes = recv(client_fd, buffer, sizeof(buffer), 0);
-    if (bytes <= 0) {
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
-        close(client_fd);
-        std::cout << "Cliente desconectado." << std::endl;
-        return;
-    }
+    std::string path = request.getPath();
+    std::string match = "/";
+    size_t longestMatch = 0;
 
-    buffer[bytes] = '\0';
-    rawRequest.append(buffer, bytes);
-
-    // verifica se já temos \r\n\r\n (fim dos headers)
-    size_t headerEnd = rawRequest.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        // headers incompletos, aguardar mais dados
-        return; // volta pro epoll_wait
-    }
-
-    // parse inicial dos headers para pegar Content-Length
-    HttpRequest tempRequest(rawRequest.c_str());
-    int contentLength = tempRequest.getContentLength(); // implemente esse método
-
-    // Esse while pode tornar o servidor bloqueante para novas conexões, melhor guardar os dados em uma classe do cliente
-    // se houver body, ler até completar
-    while (rawRequest.size() < headerEnd + 4 + contentLength) {
-        bytes = recv(client_fd, buffer, sizeof(buffer), 0);
-        if (bytes <= 0)
-            break; // desconexão
-        buffer[bytes] = '\0';
-        rawRequest.append(buffer, bytes);
-    }
-
-    // agora podemos criar o request completo
-    HttpRequest request(rawRequest.c_str());
-    const Location &location = findLocation(request);
-
-    // LOG
-    std::cout << request.getMethod() << " " << request.getPath() << " " << request.getHttpVersion() << std::endl;
-
-    if (!location.isMethodAllowed(request.getMethod()))
+    for (std::map<std::string, Location>::const_iterator it = locs.begin();
+         it != locs.end(); ++it)
     {
-        //TODO: implementar método não permitido
-        HttpResponse response = HttpResponse::methodNotAllowed(location.getMethods());
-        send(client_fd, response.toString().c_str(), response.toString().size(), 0);
+        if (path.compare(0, it->first.size(), it->first) == 0 &&
+            it->first.size() > longestMatch)
+        {
+            longestMatch = it->first.size();
+            match = it->first;
+        }
+    }
+
+    return locs.at(match);
+}
+
+void Server::handleClientRequest(int client_fd) {
+    ServerConfig *serverCfg = client_server[client_fd];
+
+    if (!serverCfg) {
+        std::cerr << "Erro: client sem server associado" << std::endl;
+        close(client_fd);
         return;
     }
+
+    char buffer[2048];
+    int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
+
+    if (bytes <= 0) {
+        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
+        close(client_fd);
+        return;
+    }
+
+    buffer[bytes] = 0;
+    std::string rawRequest(buffer);
+
+    HttpRequest request(rawRequest.c_str());
+    const Location &location = findLocation(serverCfg, request);
 
     RequestHandler handler(_config);
-    HttpResponse response = handler.handle(request, location);
-    send(client_fd, response.toString().c_str(), response.toString().size(), 0);
+    HttpResponse resp = handler.handle(request, location);
+
+    send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
 }
 
-void Server::eventLoop()
-{
-    while (true)
-    {
-        int n = epoll_wait(this->epoll_fd, this->events, 10, -1);
-        for (int i = 0; i < n; i++)
-        {
-            int fd = this->events[i].data.fd;
-            if (fd == this->server_fd)
-                handleNewConnection();
-            else
+void Server::eventLoop() {
+    while (true) {
+        int n = epoll_wait(epoll_fd, events, 64, -1);
+
+        for (int i = 0; i < n; i++) {
+            int fd = events[i].data.fd;
+
+            // Caso seja um dos sockets de servers (listener)
+            if (server_by_fd.count(fd)) {
+                handleNewConnection(fd);
+            }
+            else {
                 handleClientRequest(fd);
+            }
         }
     }
 }
 
-void Server::start()
-{
-    initSocket();
-    startListenServer();
-    createEpoll();
+void Server::start() {
+    initAllSockets();
+    registerSocketsInEpoll();
     eventLoop();
 }

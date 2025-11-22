@@ -7,6 +7,7 @@ RequestHandler::RequestHandler(const Config &config) : _config(config) {}
 
 HttpResponse RequestHandler::handle(HttpRequest &request, const Location &location)
 {
+    (void)_config;
     std::string method = request.getMethod();
 
     if (method == "GET")

@@ -32,7 +32,7 @@ int main(int ac, char **av)
     try {
         Config config(configFilePath);
         Server server(config);
-        for (size_t i = 0; i < config.servers.size(); i++) {
+        /*for (size_t i = 0; i < config.servers.size(); i++) {
             std::cout << "Server " << i + 1 << " configuration:" << std::endl;
             std::cout << i << " - server_name: " << config.servers[i].server_name << std::endl;
             std::cout << i << " - ip: " << config.servers[i].ip << std::endl;
@@ -53,8 +53,8 @@ int main(int ac, char **av)
                 }
                 std::cout << std::endl;
             }
-        }
-        // server.start();
+        }*/
+        server.start();
     }
     catch (const std::exception &e) {
         std::cerr << "Error - " << e.what() << std::endl;

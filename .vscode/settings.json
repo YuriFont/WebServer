@@ -52,6 +52,9 @@
         "iomanip": "cpp",
         "ratio": "cpp",
         "hash_map": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "optional": "cpp",
+        "ranges": "cpp",
+        "span": "cpp"
     }
 }
