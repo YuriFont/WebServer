@@ -2,7 +2,6 @@
 #include "../include/Utils.hpp"
 
 HttpResponse::HttpResponse(): contentLength(0), isNotAllow(false), connectionClose(false) {
-    
     this->setStatus(501);
     this->setHttpVersion("HTTP/1.1");
 };
@@ -14,13 +13,18 @@ void HttpResponse::setStatus(const int& statusCode) {
 
 void HttpResponse::setHttpVersion(const std::string& httpVersion) {
     this->httpVersion = httpVersion;
+    if (httpVersion == "HTTP/1.0")
+        this->setConnectionClose(true);
 };
+
 void HttpResponse::setContentType(const std::string& contentType) {
     this->contentType = contentType;
 };
+
 void HttpResponse::setContentLength(const int& contentLength){
     this->contentLength = contentLength;
 };
+
 void HttpResponse::setBody(const std::string& body) {
     this->body = body;
     setContentLength(body.size());
@@ -68,6 +72,10 @@ HttpResponse HttpResponse::methodNotAllowed(const std::vector<std::string>& meth
     return (response);    
 };
 
+void HttpResponse::setHeader(const std::string &key, const std::string &value){
+    _headers[key] = value;
+}
+
 std::string HttpResponse::toString() {
 
     std::string response = this->httpVersion;
@@ -75,6 +83,10 @@ std::string HttpResponse::toString() {
     if (this->contentLength > 0)
         response += ("Content-Type: " + this->contentType + "\r\n");
     response += "Content-Length: " + Utils::toString(this->contentLength) + "\r\n";
+    for (std::map<std::string, std::string>::const_iterator it = _headers.begin();
+         it != _headers.end(); ++it){
+        response += it->first + ": " + it->second + "\r\n";
+    }
     if (this->isNotAllow)
         response += allowedMethods;
     if (this->connectionClose)

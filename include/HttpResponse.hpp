@@ -16,6 +16,7 @@ class HttpResponse {
         std::string allowedMethods;
         bool isNotAllow;
         bool connectionClose;
+        std::map<std::string, std::string> _headers;
         
     public:
 
@@ -30,5 +31,6 @@ class HttpResponse {
         int getContentLength();
         static HttpResponse methodNotAllowed(const std::vector<std::string>& methods);
         void setAllowedMethods(const std::vector<std::string>& methods);
+        void setHeader(const std::string &key, const std::string &value);
         std::string toString();
 };

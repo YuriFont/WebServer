@@ -83,6 +83,7 @@ std::string Utils::getContentType(const std::string& path) {
 }
 
 // Read a file from disk and return its contents as a string
+// Ler o arquivo do disco e retornar o conteúdo em uma string
 bool Utils::readFile(const std::string &path, std::string &out)
 {
     int fd;
@@ -100,6 +101,7 @@ bool Utils::readFile(const std::string &path, std::string &out)
 }
 
 // Generate a basic HTML directory listing (autoindex)
+// Gerar um HTML básico com a lista de diretórios (autoindex)
 std::string Utils::generateAutoindex(const std::string &dirPath, const std::string &urlPath)
 {
     std::string html = "<html><head><title>Index of " + urlPath + "</title></head><body>";
@@ -120,6 +122,7 @@ std::string Utils::generateAutoindex(const std::string &dirPath, const std::stri
             continue;
 
         // ignora o pai ("..") mas pode incluir se quiser
+        // ignora o pai ("..")
         if (name == "..")
             continue;
 
