@@ -2,7 +2,7 @@
 
 #include "Location.hpp"
 
-class ServerConfig{
+class ServerConfig {
     public:
         std::string server_name;
         std::string ip;

@@ -107,7 +107,6 @@ void Server::eventLoop() {
         for (int i = 0; i < n; i++) {
             int fd = events[i].data.fd;
 
-            // Caso seja um dos sockets de servers (listener)
             if (server_by_fd.count(fd)) {
                 handleNewConnection(fd);
             }
