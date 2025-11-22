@@ -30,6 +30,10 @@ void HttpResponse::setConnectionClose(bool connectionClose) {
     this->connectionClose = connectionClose;
 }
 
+bool HttpResponse::isConnectionClose() {
+    return this->connectionClose;
+};
+
 int HttpResponse::getContentLength() {
     return this->contentLength;
 }

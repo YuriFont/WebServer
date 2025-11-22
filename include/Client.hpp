@@ -4,6 +4,7 @@
 #include <sys/epoll.h>
 
 #include "./HttpRequest.hpp"
+#include "ServerConfig.hpp"
 
 class Client {
 

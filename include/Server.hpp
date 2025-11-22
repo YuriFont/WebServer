@@ -5,6 +5,7 @@
 #include "Config.hpp"
 #include <sys/epoll.h>
 #include "HttpStatus.hpp"
+#include "Client.hpp"
 
 class HttpRequest;
 
@@ -21,7 +22,7 @@ class Server {
         std::vector<int> server_fds;
         std::map<int, ServerConfig> server_by_fd;
         std::map<int, ServerConfig*> client_server;
-
+        std::map<int, Client> clients;
         
         void initAllSockets();
         void registerSocketsInEpoll();

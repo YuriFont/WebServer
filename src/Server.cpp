@@ -39,13 +39,11 @@ void Server::handleNewConnection(int server_fd) {
 
     fcntl(client_fd, F_SETFL, O_NONBLOCK);
 
-    epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = client_fd;
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
+    Client client(client_fd);
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &client.getDataEvent());
 
     client_server[client_fd] = &server_by_fd[server_fd];
-
+    clients[client_fd] = client;
     std::cout << "Novo cliente no server " << server_by_fd[server_fd].getPort() << std::endl;
 }
 
@@ -71,33 +69,52 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
 }
 
 void Server::handleClientRequest(int client_fd) {
-    ServerConfig *serverCfg = client_server[client_fd];
-
-    if (!serverCfg) {
-        std::cerr << "Erro: client sem server associado" << std::endl;
-        close(client_fd);
-        return;
-    }
-
     char buffer[2048];
     int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
 
     if (bytes <= 0) {
         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
         close(client_fd);
+        clients.erase(client_fd);
+        std::cout << "Cliente desconectado." << std::endl;
+        return;
+    }
+    Client& client = clients[client_fd];
+
+    if (!client.isAllHeaders()) {
+        client.addBuffer(std::string(buffer, bytes));
+    } else {
+        client.addBody(std::string(buffer, bytes));
+    }
+
+    if (!client.isAllHeaders())
+        return ;
+    if (client.getLenBody() > ((int)client.getRequest().getBody().size()))
+        return ;
+
+    // agora podemos criar o request completo
+    HttpRequest& request = client.getRequest();
+    const Location &location = findLocation(client_server[client_fd], request);
+
+    // LOG
+    std::cout << request.getMethod() << " " << request.getPath() << " " << request.getHttpVersion() << std::endl;
+
+    if (!location.isMethodAllowed(request.getMethod()))
+    {
+        //TODO: implementar método não permitido
+        HttpResponse response = HttpResponse::methodNotAllowed(location.getMethods());
+        send(client_fd, response.toString().c_str(), response.toString().size(), 0);
         return;
     }
 
-    buffer[bytes] = 0;
-    std::string rawRequest(buffer);
-
-    HttpRequest request(rawRequest.c_str());
-    const Location &location = findLocation(serverCfg, request);
-
     RequestHandler handler(_config);
-    HttpResponse resp = handler.handle(request, location);
-
-    send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
+    HttpResponse response = handler.handle(request, location);
+    send(client_fd, response.toString().c_str(), response.toString().size(), 0);
+    if (response.isConnectionClose()) {
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
+        close(client_fd);
+        clients.erase(client_fd);
+    }
 }
 
 void Server::eventLoop() {
