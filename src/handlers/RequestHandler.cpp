@@ -1,9 +1,9 @@
-#include "../include/RequestHandler.hpp"
-#include "../include/GetHandler.hpp"
-#include "../include/PostHandler.hpp"
-#include "../include/DeleteHandler.hpp"
-#include "../include/HttpResponse.hpp"
-#include "../include/CgiHandler.hpp"
+#include "../../include/handlers/RequestHandler.hpp"
+#include "../../include/handlers/GetHandler.hpp"
+#include "../../include/handlers/PostHandler.hpp"
+#include "../../include/handlers/DeleteHandler.hpp"
+#include "../../include/http/HttpResponse.hpp"
+#include "../../include/handlers/CgiHandler.hpp"
 
 RequestHandler::RequestHandler(const Config &config) : _config(config) {}
 

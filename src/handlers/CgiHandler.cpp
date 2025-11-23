@@ -1,4 +1,4 @@
-#include "../include/CgiHandler.hpp"
+#include "../../include/handlers/CgiHandler.hpp"
 
 std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, const Location &location, const std::string &scriptPath){
     (void) location;
@@ -125,7 +125,6 @@ HttpResponse CgiHandler::process(const HttpRequest &request, const Location &loc
     //Lê saída do CGI
     std::string output = readCgiOutput(outPipe, pid);
 
-    std::cout << output << std::endl;
     //Monta a resposta HTTP
     response = responseHTTP(output, response);
     return response;

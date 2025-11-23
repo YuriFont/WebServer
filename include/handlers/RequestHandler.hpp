@@ -1,9 +1,9 @@
 #ifndef REQUESTHANDLER_HPP
 #define REQUESTHANDLER_HPP
 
-#include "Config.hpp"
-#include "HttpRequest.hpp"
-#include "HttpResponse.hpp"
+#include "../config/Config.hpp"
+#include "../http/HttpRequest.hpp"
+#include "../http/HttpResponse.hpp"
 #include "CgiHandler.hpp"
 
 class RequestHandler {

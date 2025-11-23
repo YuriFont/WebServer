@@ -1,10 +1,10 @@
 #pragma once
 
-#include "WebServer.hpp"
-#include "HttpRequest.hpp"
-#include "HttpResponse.hpp"
-#include "Location.hpp"
-#include "Utils.hpp"
+#include "../core/WebServer.hpp"
+#include "../http/HttpRequest.hpp"
+#include "../http/HttpResponse.hpp"
+#include "../config/Location.hpp"
+#include "../utils/Utils.hpp"
 
 class CgiHandler{
     private:
