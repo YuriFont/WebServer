@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./HttpStatus.hpp"
+#include "../http/HttpStatus.hpp"
 #include <vector>
 
 class HttpResponse {

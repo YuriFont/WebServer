@@ -1,5 +1,5 @@
-#include "../include/GetHandler.hpp"
-#include "../include/Utils.hpp"
+#include "../../include/handlers/GetHandler.hpp"
+#include "../../include/utils/Utils.hpp"
 
 HttpResponse GetHandler::isDir(const std::string& path, const HttpRequest &request, const Location &location, struct stat info, HttpResponse response){
     std::string indexPath = path +"/index.html";

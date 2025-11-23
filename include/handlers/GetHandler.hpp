@@ -1,9 +1,9 @@
 #ifndef GETHANDLER_HPP
 #define GETHANDLER_HPP
 
-#include "HttpRequest.hpp"
-#include "HttpResponse.hpp"
-#include "Location.hpp"
+#include "../http/HttpRequest.hpp"
+#include "../http/HttpResponse.hpp"
+#include "../config/Location.hpp"
 
 class GetHandler {
     private:

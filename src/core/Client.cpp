@@ -1,5 +1,5 @@
-#include "../include/Client.hpp"
-#include "../include/Utils.hpp"
+#include "../../include/core/Client.hpp"
+#include "../../include/utils/Utils.hpp"
 
 Client::Client() {
     this->contentLength = 0;

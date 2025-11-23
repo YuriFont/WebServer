@@ -1,5 +1,5 @@
-#include "../include/HttpStatus.hpp"
-#include "../include/Utils.hpp"
+#include "../../include/http/HttpStatus.hpp"
+#include "../../include/utils/Utils.hpp"
 
 HttpStatus::HttpStatus() {
     

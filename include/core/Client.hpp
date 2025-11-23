@@ -3,7 +3,7 @@
 #include <string>
 #include <sys/epoll.h>
 
-#include "./HttpRequest.hpp"
+#include "../http/HttpRequest.hpp"
 
 class Client {
 

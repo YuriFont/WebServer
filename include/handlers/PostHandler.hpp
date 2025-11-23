@@ -1,9 +1,9 @@
 #ifndef POSTHANDLER_HPP
 #define POSTHANDLER_HPP
 
-#include "HttpRequest.hpp"
-#include "HttpResponse.hpp"
-#include "Location.hpp"
+#include "../http/HttpRequest.hpp"
+#include "../http/HttpResponse.hpp"
+#include "../config/Location.hpp"
 
 class PostHandler {
 public:

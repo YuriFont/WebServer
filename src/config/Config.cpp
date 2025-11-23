@@ -1,6 +1,7 @@
-#include "../include/Config.hpp"
-#include "../include/Utils.hpp"
-#include "../include/Location.hpp"
+#include "../../include/config/Config.hpp"
+#include "../../include/config/Location.hpp"
+#include "../../include/core/ServerConfig.hpp"
+#include "../../include/utils/Utils.hpp"
 
 Config::Config(const std::string &filePath) : _filePath(filePath) {
     std::string line;
@@ -31,32 +32,31 @@ void Config::_openFile() {
 
 void Config::_parseConfigFile() {
     std::string line;
-
+    ServerConfig server;
     if (!_getUtilLine(_file, line))
         throw std::runtime_error("This server block is invalid: " + _filePath);
-   
+
     std::istringstream iss(line);
     do {
         iss.clear();
         iss.str(line);
         iss >> line;
         if (line == "listen")
-            _parseListen(iss);
+            _parseListen(iss, server);
         else if (line == "server_name")
-            _parseServerName(iss);
+            _parseServerName(iss, server);
         else if (line == "error_page")
-            _parseErrorPages(iss);
+            _parseErrorPages(iss, server);
         else if (line == "client_max_body_size")
-            _parseClientMaxBodySize(iss);
+            _parseClientMaxBodySize(iss, server);
         else if (line == "location")
-            _parseLocation(iss);
+            _parseLocation(iss, server);
         else if (line == "}")
             break;
         else
             throw std::runtime_error("Unknown directive: " + line + " in " + _filePath);
     } while (_getUtilLine(_file, line));
-
-    _file.close();
+    this->servers.push_back(server);
 }
 
 void Config::_skipComments(std::string &line) {
@@ -78,7 +78,7 @@ std::istream& Config::_getUtilLine(std::istream &is, std::string &line) {
     return is;
 }
 
-void Config::_parseListen(std::istringstream &iss) {
+void Config::_parseListen(std::istringstream &iss, ServerConfig &server) {
     std::string addressIP;
     int addressPort;
 
@@ -96,8 +96,8 @@ void Config::_parseListen(std::istringstream &iss) {
     if (!_PortValidation(addressPort))
         throw std::runtime_error("Invalid port number: " + Utils::toString(addressPort) + " in " + _filePath);
 
-    this->ip = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
-    this->port = addressPort;
+    server.ip = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
+    server.port = addressPort;
 }
 
 bool Config::_IPValidation(const std::string &addressIP) {
@@ -139,32 +139,32 @@ bool Config::_PortValidation(int addressPort) {
     return true;
 }
 
-void Config::_parseServerName(std::istringstream &iss) {
+void Config::_parseServerName(std::istringstream &iss, ServerConfig &server) {
     std::string name;
 
     if (!(iss >> name) || !(iss.eof()))
         throw std::runtime_error("Invalid server_name directive in " + _filePath);
-    this->server_name = name;
+    server.server_name = name;
 }
 
-void Config::_parseErrorPages(std::istringstream &iss) {
+void Config::_parseErrorPages(std::istringstream &iss, ServerConfig &server) {
     int errorCode;
     std::string errorPath;
 
     if (!(iss >> errorCode) || !(iss >> errorPath) || !(iss.eof()))
         throw std::runtime_error("Invalid error_page directive in " + _filePath);
-    this->error_page[errorCode] = errorPath;
+    server.error_pages[errorCode] = errorPath;
 }
 
-void Config::_parseClientMaxBodySize(std::istringstream &iss) {
+void Config::_parseClientMaxBodySize(std::istringstream &iss, ServerConfig &server) {
     std::string sizeStr;
 
     if (!(iss >> sizeStr) || !(iss.eof()))
         throw std::runtime_error("Invalid client_max_body_size directive in " + _filePath);
-    this->client_max_body_size = Utils::toSizeT(sizeStr);
+    server.client_max_body_size = Utils::toSizeT(sizeStr);
 }
 
-void Config::_parseLocation(std::istringstream &iss) {
+void Config::_parseLocation(std::istringstream &iss, ServerConfig &server) {
     Location location;
     std::string line;
 
@@ -203,7 +203,7 @@ void Config::_parseLocation(std::istringstream &iss) {
         location.setMethods(iss);
     }
 
-    if (locations.find(location.getPath()) != locations.end())
+    if (server.locations.find(location.getPath()) != server.locations.end())
         throw std::runtime_error("Duplicate location path: " + location.getPath() + " in " + _filePath);
 
     if (location.isMethodAllowed("GET") && location.getRoot().empty() && location.getRedirect().empty())
@@ -215,5 +215,5 @@ void Config::_parseLocation(std::istringstream &iss) {
     if (location.isMethodAllowed("POST") == false && location.isUploadEnabled())
         throw(std::runtime_error("POST method must be allowed for uploads in location: " + location.getPath() + " in " + _filePath));
 
-    locations[location.getPath()] = location;
+    server.locations[location.getPath()] = location;
 }

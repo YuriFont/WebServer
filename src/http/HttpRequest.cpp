@@ -1,8 +1,8 @@
-#include "../include/HttpRequest.hpp"
+#include "../../include/http/HttpRequest.hpp"
+#include "../../include/utils/Utils.hpp"
 
 #include <sstream>
 #include <vector>
-#include "../include/Utils.hpp"
 #include <exception>
 
 HttpRequest::HttpRequest() {

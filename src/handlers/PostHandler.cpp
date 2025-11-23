@@ -1,5 +1,5 @@
-#include "../include/PostHandler.hpp"
-#include "../include/Utils.hpp"
+#include "../../include/handlers/PostHandler.hpp"
+#include "../../include/utils/Utils.hpp"
 
 HttpResponse PostHandler::process(HttpRequest &request, const Location &location)
 {

@@ -1,17 +1,36 @@
 NAME = bin/webserv
-FILES = Config.cpp \
-		Utils.cpp \
-		Location.cpp \
-		Server.cpp \
-		HttpRequest.cpp \
-		HttpResponse.cpp \
-		HttpStatus.cpp \
-		RequestHandler.cpp \
-		GetHandler.cpp \
-		PostHandler.cpp \
-		DeleteHandler.cpp \
-		Client.cpp \
-		CgiHandler.cpp
+
+CONFIG =	Config.cpp \
+			Location.cpp
+
+CORE = 		Client.cpp \
+			Server.cpp \
+			ServerConfig.cpp
+
+HANDLERS =	DeleteHandler.cpp \
+			GetHandler.cpp \
+			PostHandler.cpp \
+			RequestHandler.cpp\
+			CgiHandler.cpp
+
+HTTP =		HttpRequest.cpp \
+			HttpResponse.cpp \
+			HttpStatus.cpp
+
+UTILS = 	Utils.cpp
+
+FOLDERS = 	config/ \
+			core/ \
+			handlers/ \
+			http/ \
+			utils/
+
+FILES = $(addprefix config/, $(CONFIG)) \
+		$(addprefix core/, $(CORE)) \
+		$(addprefix handlers/, $(HANDLERS)) \
+		$(addprefix http/, $(HTTP)) \
+		$(addprefix utils/, $(UTILS))
+		
 SRC = $(addprefix src/, $(FILES))
 OBJ = $(addprefix obj/, ${FILES:%.cpp=%.o})
 CXX = c++
@@ -23,6 +42,7 @@ $(NAME): $(OBJ)
 	$(CXX) $(CXXFLAGS) src/main.cpp -o $@ $^
 
 obj/%.o: src/%.cpp
+	@mkdir -p $(addprefix obj/, $(FOLDERS))
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
@@ -30,5 +50,11 @@ clean:
 
 fclean: clean
 	rm -rf $(NAME)
+
+test:
+	@cd tests && bash get_test.sh \
+	&& bash delete_test.sh \
+	&& bash post_test.sh
+	@make fclean
 
 re: fclean all

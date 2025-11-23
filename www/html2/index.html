@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste de Porta</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        #box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: fit-content;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="box">
+        <h2>Teste de Configuração por Porta</h2>
+        <p><strong>Hostname:</strong> <span id="host"></span></p>
+        <p><strong>Porta:</strong> <span id="port"></span></p>
+        <p><strong>URL completa:</strong> <span id="url"></span></p>
+    </div>
+
+    <script>
+        document.getElementById("host").innerText = window.location.hostname;
+        document.getElementById("port").innerText = window.location.port || "(padrão)";
+        document.getElementById("url").innerText = window.location.href;
+    </script>
+
+</body>
+</html>
