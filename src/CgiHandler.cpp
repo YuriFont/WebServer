@@ -5,10 +5,8 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     std::vector<std::string> env;
     env.push_back("REQUEST_METHOD=" + request.getMethod());
     env.push_back("SCRIPT_FILENAME=" + scriptPath);
-    std::string fullPath = request.getPath();
-    size_t q = fullPath.find('?');
-    std::string query = (q != std::string::npos) ? fullPath.substr(q + 1) : "";
-    env.push_back("QUERY_STRING=" + query);
+    std::cout << "query:" << request.getQueryString() << std::endl;
+    env.push_back("QUERY_STRING=" + request.getQueryString());
     env.push_back("CONTENT_LENGTH=" + Utils::toString(request.getBody().size()));
     env.push_back("CONTENT_TYPE=" + request.getHeader("Content-Type"));
     env.push_back("GATEWAY_INTERFACE=CGI/1.1");
@@ -17,6 +15,7 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     env.push_back("SERVER_NAME=localhost");
     env.push_back("SERVER_PORT=8080");
     env.push_back("PATH_INFO=" + request.getPath());
+    env.push_back("REDIRECT_STATUS=200");
     return env;
 }
 
@@ -64,8 +63,11 @@ std::string CgiHandler::readCgiOutput(int outPipe[2], pid_t pid)
 
 HttpResponse CgiHandler::responseHTTP(const std::string &output, HttpResponse &response)
 {
-    size_t headerEnd = output.find("\r\n\r\n"); //procura separação do cabeçalho e corpo
-    
+    size_t headerEnd = output.find("\r\n\r\n");
+    if (headerEnd == std::string::npos)
+        headerEnd = output.find("\n\n");
+
+
     //Cabeçalho invalido
     if (headerEnd == std::string::npos)
     {
@@ -123,6 +125,7 @@ HttpResponse CgiHandler::process(const HttpRequest &request, const Location &loc
     //Lê saída do CGI
     std::string output = readCgiOutput(outPipe, pid);
 
+    std::cout << output << std::endl;
     //Monta a resposta HTTP
     response = responseHTTP(output, response);
     return response;
