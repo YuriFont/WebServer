@@ -16,19 +16,20 @@ class Server {
         void start();
 
     private:
-        std::map<int, Client> clients;
-        int server_fd;
+        const Config &_config;
         int epoll_fd;
         epoll_event events[10];
-        void initSocket();
-        void startListenServer();
-        void createEpoll();
-        void eventLoop();
-        void handleNewConnection();
+        std::vector<int> server_fds;
+        std::map<int, ServerConfig> server_by_fd;
+        std::map<int, ServerConfig*> client_server;
+        std::map<int, Client> clients;
+        
+        void initAllSockets();
+        void registerSocketsInEpoll();
+        void handleNewConnection(int server_fd);
         void handleClientRequest(int client_fd);
-        const Config& _config;
-        const Location& findLocation(HttpRequest& request);
-        std::string fileToString(const Location& location, const std::string& nameFile);
+        const Location &findLocation(ServerConfig *serverCfg, HttpRequest &request);
+        void eventLoop();
 };
 
 #endif

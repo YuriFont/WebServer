@@ -3,15 +3,11 @@
 
 #include "WebServer.hpp"
 #include "Location.hpp"
+#include "ServerConfig.hpp"
 
 class Config {
     public:
-        std::string server_name;
-        std::string ip;
-        int port;
-        std::map<int, std::string> error_page;
-        size_t client_max_body_size;
-        std::map<std::string, Location> locations;
+        std::vector<ServerConfig> servers;
         Config(const std::string &filePath);
         ~Config();
 
@@ -22,11 +18,11 @@ class Config {
         void _openFile();
         void _skipComments(std::string &line);
         std::istream& _getUtilLine(std::istream &is, std::string &line);
-        void _parseListen(std::istringstream &iss);
-        void _parseServerName(std::istringstream &iss);
-        void _parseErrorPages(std::istringstream &iss);
-        void _parseClientMaxBodySize(std::istringstream &iss);
-        void _parseLocation(std::istringstream &iss);
+        void _parseListen(std::istringstream &iss, ServerConfig &server);
+        void _parseServerName(std::istringstream &iss, ServerConfig &server);
+        void _parseErrorPages(std::istringstream &iss, ServerConfig &server);
+        void _parseClientMaxBodySize(std::istringstream &iss, ServerConfig &server);
+        void _parseLocation(std::istringstream &iss, ServerConfig &server);
         bool _IPValidation(const std::string &addressIP);
         bool _PortValidation(int addressPort);
 };
