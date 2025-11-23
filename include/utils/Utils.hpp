@@ -19,6 +19,7 @@ class Utils {
         static bool readFile(const std::string &path, std::string &out);
         static std::string generateAutoindex(const std::string &dirPath, const std::string &urlPath);
         static bool writeFile(const std::string &path, const std::string &data);
+        static void freeCharArray(char **envp);
         static char **vecToCharArray(const std::vector<std::string> &vec);
 
 };

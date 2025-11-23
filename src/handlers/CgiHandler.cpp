@@ -42,6 +42,7 @@ void CgiHandler::spawnCgiChild(const HttpRequest &request, const Location &locat
 
     // Se chegou aqui, execve falhou
     std::cerr << "CGI execve failed: " << strerror(errno) << std::endl;
+    Utils::freeCharArray(envp);
     exit(EXIT_FAILURE);
 }
 
