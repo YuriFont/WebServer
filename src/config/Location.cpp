@@ -1,5 +1,5 @@
-#include "../include/Location.hpp"
-#include "../include/Utils.hpp"
+#include "../../include/config/Location.hpp"
+#include "../../include/utils/Utils.hpp"
 
 Location::Location() : _autoindex(false), _upload_enable(false) {}
 

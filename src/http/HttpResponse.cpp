@@ -1,5 +1,5 @@
-#include "../include/HttpResponse.hpp"
-#include "../include/Utils.hpp"
+#include "../../include/http/HttpResponse.hpp"
+#include "../../include/utils/Utils.hpp"
 
 HttpResponse::HttpResponse(): contentLength(0), isNotAllow(false), connectionClose(false) {
     this->setStatus(501);

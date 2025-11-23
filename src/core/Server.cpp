@@ -1,10 +1,10 @@
-#include "../include/WebServer.hpp"
-#include "../include/Server.hpp"
-#include "../include/Utils.hpp"
-#include "../include/Config.hpp"
-#include "../include/HttpRequest.hpp"
-#include "../include/HttpResponse.hpp"
-#include "../include/RequestHandler.hpp"
+#include "../../include/core/WebServer.hpp"
+#include "../../include/core/Server.hpp"
+#include "../../include/http/HttpRequest.hpp"
+#include "../../include/http/HttpResponse.hpp"
+#include "../../include/handlers/RequestHandler.hpp"
+#include "../../include/config/Config.hpp"
+#include "../../include/utils/Utils.hpp"
 
 Server::Server(const Config &config) : _config(config) {}
 Server::~Server() {}

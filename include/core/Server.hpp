@@ -2,9 +2,9 @@
 #define SERVER_HPP
 
 #include "WebServer.hpp"
-#include "Config.hpp"
+#include "../config/Config.hpp"
 #include <sys/epoll.h>
-#include "HttpStatus.hpp"
+#include "../http/HttpStatus.hpp"
 #include "Client.hpp"
 
 class HttpRequest;
