@@ -1,7 +1,7 @@
-#include "../include/Config.hpp"
-#include "../include/Utils.hpp"
-#include "../include/Location.hpp"
-#include "../include/ServerConfig.hpp"
+#include "../../include/config/Config.hpp"
+#include "../../include/config/Location.hpp"
+#include "../../include/core/ServerConfig.hpp"
+#include "../../include/utils/Utils.hpp"
 
 Config::Config(const std::string &filePath) : _filePath(filePath) {
     std::string line;

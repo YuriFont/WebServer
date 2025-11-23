@@ -1,5 +1,5 @@
-#include "../include/DeleteHandler.hpp"
-#include "../include/Utils.hpp"
+#include "../../include/handlers/DeleteHandler.hpp"
+#include "../../include/utils/Utils.hpp"
 
 HttpResponse DeleteHandler::process(HttpRequest &request, const Location &location)
 {

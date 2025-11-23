@@ -1,7 +1,7 @@
 #ifndef UTILS_HPP
 # define UTILS_HPP
 
-#include "WebServer.hpp"
+#include "../core/WebServer.hpp"
 
 class Utils {
     private:

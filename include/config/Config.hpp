@@ -1,9 +1,9 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
 
-#include "WebServer.hpp"
+#include "../core/WebServer.hpp"
+#include "../core/ServerConfig.hpp"
 #include "Location.hpp"
-#include "ServerConfig.hpp"
 
 class Config {
     public:

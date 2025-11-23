@@ -10,8 +10,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../include/Config.hpp"
-#include "../include/Server.hpp"
+#include "../include/config/Config.hpp"
+#include "../include/core/Server.hpp"
 
 void sigint_handler(int signum)
 {

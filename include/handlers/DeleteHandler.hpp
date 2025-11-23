@@ -1,9 +1,9 @@
 #ifndef DELETEHANDLER_HPP
 #define DELETEHANDLER_HPP
 
-#include "HttpRequest.hpp"
-#include "HttpResponse.hpp"
-#include "Location.hpp"
+#include "../http/HttpRequest.hpp"
+#include "../http/HttpResponse.hpp"
+#include "../config/Location.hpp"
 
 class DeleteHandler {
     public:

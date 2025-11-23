@@ -1,4 +1,4 @@
-#include "../include/ServerConfig.hpp"
+#include "../../include/core/ServerConfig.hpp"
 
 ServerConfig::ServerConfig() {
     this->server_name = "";
