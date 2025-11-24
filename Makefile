@@ -10,7 +10,8 @@ CORE = 		Client.cpp \
 HANDLERS =	DeleteHandler.cpp \
 			GetHandler.cpp \
 			PostHandler.cpp \
-			RequestHandler.cpp
+			RequestHandler.cpp\
+			CgiHandler.cpp
 
 HTTP =		HttpRequest.cpp \
 			HttpResponse.cpp \

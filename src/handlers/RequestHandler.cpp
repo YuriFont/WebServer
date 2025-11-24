@@ -3,14 +3,13 @@
 #include "../../include/handlers/PostHandler.hpp"
 #include "../../include/handlers/DeleteHandler.hpp"
 #include "../../include/http/HttpResponse.hpp"
+#include "../../include/handlers/CgiHandler.hpp"
 
 RequestHandler::RequestHandler(const Config &config) : _config(config) {}
 
 HttpResponse RequestHandler::handle(HttpRequest &request, const Location &location)
 {
     //Redirecionamento global (antes de qualquer método)
-    //resquícios de código legado, quando estava funcionando apenas um servidor
-    (void)_config;
     if (!location.getRedirect().empty()){
         HttpResponse response;
         response.setHttpVersion(request.getHttpVersion());
@@ -20,6 +19,23 @@ HttpResponse RequestHandler::handle(HttpRequest &request, const Location &locati
         response.setConnectionClose(true);
         return response;
     }
+
+    // Detecção de CGI
+    std::string rawPath = request.getPath();
+
+    // Remover query string
+    size_t q = rawPath.find('?');
+    std::string path = (q != std::string::npos) ? rawPath.substr(0, q) : rawPath;
+
+    // Agora extrair extensão corretamente
+    size_t dot = path.find_last_of('.');
+
+    if (dot != std::string::npos) {
+        std::string extension = path.substr(dot);  // → ".py"
+        if (location.hasCgiForExtension(extension))
+            return CgiHandler::process(request, location, extension);
+    }
+
     std::string method = request.getMethod();
 
     if (method == "GET")

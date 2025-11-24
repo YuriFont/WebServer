@@ -169,6 +169,17 @@ void Location::setUploadStore(std::istringstream &iss) {
     _uploadStore = rootUploadPath;
 }
 
+bool Location::hasCgiForExtension(const std::string &ext) const {
+    return _cgi.find(ext) != _cgi.end();
+}
+
+std::string Location::getCgiPathForExtension(const std::string &ext) const {
+    std::map<std::string, std::string>::const_iterator it = _cgi.find(ext);
+    if (it != _cgi.end())
+        return it->second;
+    return "";
+}
+
 void Location::addCgi(std::istringstream &iss) {
     std::string extension;
     std::string scriptPath;

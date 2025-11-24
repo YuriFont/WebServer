@@ -58,6 +58,15 @@ void HttpRequest::parser() {
     std::stringstream firstLine(lines[0]);
     firstLine >> _method >> _path >> _httpVersion;
 
+    // separar path e query string
+    size_t qpos = _path.find('?');
+    if (qpos != std::string::npos) {
+        _queryString = _path.substr(qpos + 1);
+        _path = _path.substr(0, qpos);
+    } else {
+        _queryString = "";
+    }
+
     // headers
     for (size_t i = 1; i < lines.size(); i++) {
         size_t pos = lines[i].find(':');
