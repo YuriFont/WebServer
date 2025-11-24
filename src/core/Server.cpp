@@ -114,6 +114,8 @@ void Server::handleClientRequest(int client_fd) {
         epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
         close(client_fd);
         clients.erase(client_fd);
+    } else {
+        client.cleanData();
     }
 }
 
