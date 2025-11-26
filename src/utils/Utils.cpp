@@ -78,6 +78,7 @@ std::string Utils::getContentType(const std::string& path) {
     if (path.find(".js") != std::string::npos) return "application/javascript";
     if (path.find(".png") != std::string::npos) return "image/png";
     if (path.find(".ico") != std::string::npos) return "image/vnd.microsoft.icon";
+    if (path.find(".zip") != std::string::npos) return "application/zip";
     if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) return "image/jpeg";
     return "text/html"; // default
 }

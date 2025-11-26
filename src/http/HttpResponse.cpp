@@ -80,7 +80,7 @@ std::string HttpResponse::toString() {
 
     std::string response = this->httpVersion;
     response += (" " + status.makeResponseStatus() + "\r\n");
-    if (this->contentLength > 0)
+    if (this->contentType.size() > 0)
         response += ("Content-Type: " + this->contentType + "\r\n");
     response += "Content-Length: " + Utils::toString(this->contentLength) + "\r\n";
     for (std::map<std::string, std::string>::const_iterator it = _headers.begin();
