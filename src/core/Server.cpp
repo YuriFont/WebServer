@@ -13,6 +13,10 @@ Server::~Server() {
         close(server_fds[i]);
     }
 
+    for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        close(it->first);
+    }
+
     close(epoll_fd);
 }
 
