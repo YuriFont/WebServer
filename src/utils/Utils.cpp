@@ -164,3 +164,20 @@ char **Utils::vecToCharArray(const std::vector<std::string> &vec)
     arr[vec.size()] = NULL;
     return arr;
 }
+
+std::string Utils::extractValue(const std::string& line, const std::string& key) {
+
+    size_t pos = line.find(key);
+    if (pos == std::string::npos) {
+        return "";
+    }
+    
+    pos += key.length(); 
+    size_t endPos = line.find("\"", pos);
+
+    if (endPos == std::string::npos) {
+        return "";
+    }
+
+    return line.substr(pos, endPos - pos);
+}

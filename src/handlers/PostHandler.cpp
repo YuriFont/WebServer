@@ -82,6 +82,106 @@ void PostHandler::saveFile(const std::string& contentType, const std::string& up
     Utils::writeFile(uploadPath, body);
 }
 
+std::string PostHandler::getBoundary(const std::string& contentType) {
+
+    size_t pos = contentType.find("boundary=");
+    std::cout << contentType << std::endl;
+
+    if (pos == std::string::npos) {
+        std::cout << "Errou" << std::endl;
+    }
+
+    pos += 9;
+    std::string boundary = contentType.substr(pos);
+    boundary =  "--" + boundary;
+
+    return boundary;
+}
+
+void PostHandler::parseHeaderLine(const std::string& line, content& result) {
+    // Caso 1: Content-Disposition
+    if (line.find("Content-Disposition:") != std::string::npos) {
+        size_t start = line.find(": ");
+        size_t end = line.find(";");
+        
+        if (start != std::string::npos && end != std::string::npos) {
+            // +2 para pular ": "
+            result.disposition = line.substr(start + 2, end - (start + 2));
+        }
+
+        result.name = Utils::extractValue(line, "name=\"");
+        result.fileName = Utils::extractValue(line, "filename=\"");
+    }
+    // Caso 2: Content-Type
+    else if (line.find("Content-Type:") != std::string::npos) {
+        size_t start = line.find(": ");
+        if (start != std::string::npos) {
+            // Pega tudo do ": " até o fim da string (ou remove espaços extras se necessário)
+            std::string type = line.substr(start + 2);
+            
+            // Opcional: Remover \r ou \n se a string vier bruta do socket
+            size_t endClean = type.find_last_not_of(" \t\r\n");
+            if (endClean != std::string::npos)
+                 result.contentType = type.substr(0, endClean + 1);
+            else 
+                 result.contentType = type;
+        }
+    }
+}
+
+void PostHandler::getContents(const std::string& line, content& contents) {
+
+    parseHeaderLine(line, contents);
+}
+
+
+std::string PostHandler::nextLine(const std::string& body, size_t& rangeStart, size_t& endLine) { 
+
+    rangeStart = endLine + 1;
+    endLine = body.find("\n", rangeStart);
+    if (endLine == std::string::npos || endLine == body.size()) {
+        return "";
+    }
+    return (body.substr(rangeStart, endLine - rangeStart));
+};
+
+
+void PostHandler::processMuiltPart(const std::string& contentType, const std::string& body) {
+
+
+    std::string boundary = getBoundary(contentType);
+    std::string boundaryEnd = boundary + "--";
+
+
+    content contents;
+    // // size_t totalSize = body.size();
+    size_t rangeStart = 0;
+    size_t endLine = 0;
+    // // size_t rangeEnd = 0;
+    // // std::stringstream ss(body);
+    while (true) {
+
+        std::string line = nextLine(body, rangeStart, endLine);
+        std::cout << "Linha: " << line << "\n" << std::endl;
+        
+        if (body.compare(rangeStart, boundary.size() + 2, (boundary + "\r\n")) == 0) {
+            std::cout << "Inicio da boundary " << std::endl;
+
+            line = nextLine(body, rangeStart, endLine);
+            getContents(line, contents);
+            line = nextLine(body, rangeStart, endLine);
+            getContents(line, contents);
+        }
+        if (body.compare(rangeStart, boundaryEnd.size(), boundaryEnd) == 0) {
+            std::cout << "Chegou ao fim acabou " << std::endl;
+            break;
+        }
+        rangeStart = endLine + 1;
+        
+    }
+
+};
+
 HttpResponse PostHandler::process(HttpRequest &request, const Location &location)
 {
     std::string contentType = request.getHeader("Content-Type");
@@ -113,7 +213,11 @@ HttpResponse PostHandler::process(HttpRequest &request, const Location &location
         // Processar upload de arquivo multipart
         // Aqui você precisaria implementar o parsing do corpo multipart
         // Para simplificação, vamos assumir que o arquivo foi salvo com sucesso
-        std::string uploadPath = location.getUploadStore() + "/upload_" + Utils::toString(std::time(0)) + ".bin";
+        
+        processMuiltPart(contentType, body);
+
+
+        std::string uploadPath = location.getUploadStore() + "/upload_" + Utils::toString(std::time(0));
         if (Utils::writeFile(uploadPath, body)) {
             response.setStatus(201);
             response.setContentType("text/html");
