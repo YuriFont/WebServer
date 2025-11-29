@@ -10,7 +10,7 @@ Client::Client() {
 };
 
 Client::~Client() {
-
+    close(this->client_fd);
 };
 
 Client::Client(const int& client_fd) {
