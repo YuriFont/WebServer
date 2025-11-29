@@ -9,9 +9,7 @@ Client::Client() {
     this->isHeadersParsed = false;
 };
 
-Client::~Client() {
-
-};
+Client::~Client() {};
 
 Client::Client(const int& client_fd) {
 

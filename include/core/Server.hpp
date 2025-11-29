@@ -14,6 +14,7 @@ class Server {
         Server(const Config &config);
         ~Server();
         void start();
+        void shutdown();
 
     private:
         const Config &_config;
@@ -23,6 +24,7 @@ class Server {
         std::map<int, ServerConfig> server_by_fd;
         std::map<int, ServerConfig*> client_server;
         std::map<int, Client> clients;
+        bool _running;
         
         void initAllSockets();
         void registerSocketsInEpoll();
