@@ -19,6 +19,7 @@ Config::Config(const std::string &filePath) : _filePath(filePath) {
     }
 
     std::cout << GREEN << "[Config]: Config file parsed successfully." << RESET << std::endl;
+    _file.close();
 }
 
 Config::~Config() {}

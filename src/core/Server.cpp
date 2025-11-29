@@ -6,8 +6,19 @@
 #include "../../include/config/Config.hpp"
 #include "../../include/utils/Utils.hpp"
 
-Server::Server(const Config &config) : _config(config) {}
-Server::~Server() {}
+Server::Server(const Config &config) : _config(config), _running(true) {}
+
+Server::~Server() {
+    for (size_t i = 0; i < server_fds.size(); i++) {
+        close(server_fds[i]);
+    }
+
+    for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        close(it->first);
+    }
+
+    close(epoll_fd);
+}
 
 void Server::initAllSockets() {
     for (size_t i = 0; i < _config.servers.size(); i++) {
@@ -120,7 +131,7 @@ void Server::handleClientRequest(int client_fd) {
 }
 
 void Server::eventLoop() {
-    while (true) {
+    while (_running) {
         int n = epoll_wait(epoll_fd, events, 64, -1);
 
         for (int i = 0; i < n; i++) {
@@ -134,6 +145,10 @@ void Server::eventLoop() {
             }
         }
     }
+}
+
+void Server::shutdown() {
+    _running = false;
 }
 
 void Server::start() {
