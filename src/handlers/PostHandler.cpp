@@ -85,7 +85,7 @@ void PostHandler::saveFile(const std::string& contentType, const std::string& up
 std::string PostHandler::getBoundary(const std::string& contentType) {
 
     size_t pos = contentType.find("boundary=");
-    std::cout << contentType << std::endl;
+    // std::cout << contentType << std::endl;
 
     if (pos == std::string::npos) {
         std::cout << "Errou" << std::endl;
@@ -137,7 +137,7 @@ void PostHandler::getContents(const std::string& line, content& contents) {
 
 std::string PostHandler::nextLine(const std::string& body, size_t& rangeStart, size_t& endLine) { 
 
-    rangeStart = endLine + 1;
+    // rangeStart = endLine + 1;
     endLine = body.find("\n", rangeStart);
     if (endLine == std::string::npos || endLine == body.size()) {
         return "";
@@ -146,7 +146,7 @@ std::string PostHandler::nextLine(const std::string& body, size_t& rangeStart, s
 };
 
 
-void PostHandler::processMuiltPart(const std::string& contentType, const std::string& body) {
+void PostHandler::processMuiltPart(const std::string& contentType, const std::string& body, const std::string& uploadPath) {
 
 
     std::string boundary = getBoundary(contentType);
@@ -154,26 +154,49 @@ void PostHandler::processMuiltPart(const std::string& contentType, const std::st
 
 
     content contents;
-    // // size_t totalSize = body.size();
     size_t rangeStart = 0;
     size_t endLine = 0;
-    // // size_t rangeEnd = 0;
-    // // std::stringstream ss(body);
     while (true) {
 
         std::string line = nextLine(body, rangeStart, endLine);
-        std::cout << "Linha: " << line << "\n" << std::endl;
         
-        if (body.compare(rangeStart, boundary.size() + 2, (boundary + "\r\n")) == 0) {
-            std::cout << "Inicio da boundary " << std::endl;
 
+        if (body.compare(rangeStart, boundary.size() + 2, (boundary + "\r\n")) == 0) {
+            rangeStart = endLine + 1;
             line = nextLine(body, rangeStart, endLine);
             getContents(line, contents);
+           
+            rangeStart = endLine + 1;
             line = nextLine(body, rangeStart, endLine);
-            getContents(line, contents);
+
+            if (line.compare(0, 12, "Content-Type") == 0) {
+                getContents(line, contents);
+                rangeStart += line.size();
+            }
+
+
+                size_t bpos = body.find(boundary, rangeStart);
+
+                size_t headers_end = body.find("\r\n", rangeStart);
+                if (bpos == std::string::npos || headers_end == std::string::npos || headers_end >= bpos) continue;
+                rangeStart = headers_end + 2;
+
+                size_t partStart = rangeStart;
+
+                if (bpos == std::string::npos)
+                    continue ;
+                std::string partData = body.substr(partStart, bpos - partStart);
+
+                if (partData.size() >= 2 && partData[partData.size()-2] == '\r' && partData[partData.size()-1] == '\n')
+                    partData.resize(partData.size() - 2);
+                else if (partData.size() >= 1 && (partData[partData.size()-1] == '\n' || partData[partData.size()-1] == '\r'))
+                    partData.resize(partData.size() - 1);
+
+                std::string dirUpload = contents.fileName.empty() ? uploadPath + "/" + contents.name + ".txt" : uploadPath + "/" + contents.fileName;
+                Utils::writeFile(dirUpload, partData);
+                rangeStart = bpos;
         }
         if (body.compare(rangeStart, boundaryEnd.size(), boundaryEnd) == 0) {
-            std::cout << "Chegou ao fim acabou " << std::endl;
             break;
         }
         rangeStart = endLine + 1;
@@ -213,20 +236,18 @@ HttpResponse PostHandler::process(HttpRequest &request, const Location &location
         // Processar upload de arquivo multipart
         // Aqui você precisaria implementar o parsing do corpo multipart
         // Para simplificação, vamos assumir que o arquivo foi salvo com sucesso
-        
-        processMuiltPart(contentType, body);
-
-
-        std::string uploadPath = location.getUploadStore() + "/upload_" + Utils::toString(std::time(0));
-        if (Utils::writeFile(uploadPath, body)) {
+        try {
+            processMuiltPart(contentType, body, location.getUploadStore());
             response.setStatus(201);
             response.setContentType("text/html");
-            response.setBody("File uploaded successfully to " + uploadPath);
-        } else {
+            response.setBody("File uploaded successfully to ");
+        } catch (const std::exception &e) {
+            std::cerr << "Error - " << e.what() << std::endl;
             response.setStatus(500);
             response.setContentType("text/html");
             response.setBody("500 Internal Server Error: Failed to save the uploaded file.");
         }
+
     } else {
         if (_types.count(contentType)) {
             saveFile(contentType, location.getUploadStore(), body);

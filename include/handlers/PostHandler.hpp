@@ -23,7 +23,7 @@ class PostHandler {
         static std::string getExtension(const std::string& type);
         static void saveFile(const std::string& contentType, const std::string& uploadStore, const std::string& body);
         static std::string getBoundary(const std::string& contentType);
-        static void processMuiltPart(const std::string& contentType, const std::string& body);
+        static void processMuiltPart(const std::string& contentType, const std::string& body, const std::string& uploadPath);
         static void getContents(const std::string& line, content& contents);
         static void parseHeaderLine(const std::string& line, content& result);
         static std::string nextLine(const std::string& body, size_t& rangeStart, size_t& endLine);
