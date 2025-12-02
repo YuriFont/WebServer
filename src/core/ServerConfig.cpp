@@ -48,14 +48,14 @@ int ServerConfig::getPort() const{
 int ServerConfig::initSocket() {
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1){
-        std::cerr << "Erro no socket: " << strerror(errno) << std::endl;
+        std::cerr << "Error in socket: " << strerror(errno) << std::endl;
         exit(EXIT_FAILURE);
     }
     fcntl(socket_fd, F_SETFL, O_NONBLOCK);
     int opt = 1;
     if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
-        std::cerr << "Erro no setsockopt: " << strerror(errno) << std::endl;
+        std::cerr << "Error in setsockopt: " << strerror(errno) << std::endl;
         close(socket_fd);
         exit(EXIT_FAILURE);
     }
@@ -66,21 +66,21 @@ int ServerConfig::initSocket() {
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
     if (addr.sin_addr.s_addr == INADDR_NONE)
     {
-        std::cerr << "IP inválido: " << ip << std::endl;
+        std::cerr << "Invalid IP: " << ip << std::endl;
         exit(EXIT_FAILURE);
     }
     if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        std::cerr << "Erro no bind: " << strerror(errno) << std::endl;
+        std::cerr << "Error in bind: " << strerror(errno) << std::endl;
         close(socket_fd);
         exit(EXIT_FAILURE);
     }
     if (listen(socket_fd, 5) < 0)
     {
-        std::cerr << "Erro no listen: " << strerror(errno) << std::endl;
+        std::cerr << "Error in listen: " << strerror(errno) << std::endl;
         close(socket_fd);
         exit(EXIT_FAILURE);
     }
-    std::cout << "Servidor ouvindo em " << ip << ":" << port << std::endl;
+    std::cout << "Server listening on " << ip << ":" << port << std::endl;
     return socket_fd;
 }

@@ -55,7 +55,7 @@ void Server::handleNewConnection(int server_fd) {
 
     client_server[client_fd] = &server_by_fd[server_fd];
     clients[client_fd] = client;
-    std::cout << "Novo cliente no server " << server_by_fd[server_fd].getPort() << std::endl;
+    std::cout << "New client in the server " << server_by_fd[server_fd].getPort() << std::endl;
 }
 
 const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &request) {
@@ -87,7 +87,7 @@ void Server::handleClientRequest(int client_fd) {
         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
         close(client_fd);
         clients.erase(client_fd);
-        std::cout << "Cliente desconectado." << std::endl;
+        std::cout << "Client disconnected." << std::endl;
         return;
     }
     Client& client = clients[client_fd];
