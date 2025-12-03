@@ -156,9 +156,10 @@ void PostHandler::processMuiltPart(const std::string& contentType, const std::st
     content contents;
     size_t rangeStart = 0;
     size_t endLine = 0;
+    std::string line;
     while (true) {
 
-        std::string line = nextLine(body, rangeStart, endLine);
+        line = nextLine(body, rangeStart, endLine);
         
 
         if (body.compare(rangeStart, boundary.size() + 2, (boundary + "\r\n")) == 0) {
@@ -175,90 +176,97 @@ void PostHandler::processMuiltPart(const std::string& contentType, const std::st
             }
 
 
-                size_t bpos = body.find(boundary, rangeStart);
+            size_t bpos = body.find(boundary, rangeStart);
+            size_t headers_end = body.find("\r\n", rangeStart);
 
-                size_t headers_end = body.find("\r\n", rangeStart);
-                if (bpos == std::string::npos || headers_end == std::string::npos || headers_end >= bpos) continue;
-                rangeStart = headers_end + 2;
+            if (bpos == std::string::npos || headers_end == std::string::npos || headers_end >= bpos)
+                continue;
+            rangeStart = headers_end + 2;
+            size_t partStart = rangeStart;
 
-                size_t partStart = rangeStart;
+            if (bpos == std::string::npos)
+                continue ;
 
-                if (bpos == std::string::npos)
-                    continue ;
-                std::string partData = body.substr(partStart, bpos - partStart);
-
-                if (partData.size() >= 2 && partData[partData.size()-2] == '\r' && partData[partData.size()-1] == '\n')
-                    partData.resize(partData.size() - 2);
-                else if (partData.size() >= 1 && (partData[partData.size()-1] == '\n' || partData[partData.size()-1] == '\r'))
-                    partData.resize(partData.size() - 1);
-
-                std::string dirUpload = contents.fileName.empty() ? uploadPath + "/" + contents.name + ".txt" : uploadPath + "/" + contents.fileName;
-                Utils::writeFile(dirUpload, partData);
-                rangeStart = bpos;
+            std::string partData = body.substr(partStart, bpos - partStart);
+            if (partData.size() >= 2 && partData[partData.size()-2] == '\r' && partData[partData.size()-1] == '\n')
+                partData.resize(partData.size() - 2);
+            else if (partData.size() >= 1 && (partData[partData.size()-1] == '\n' || partData[partData.size()-1] == '\r'))
+                partData.resize(partData.size() - 1);
+            
+            std::string dirUpload = contents.fileName.empty() ? uploadPath + "/" + contents.name + ".txt" : uploadPath + "/" + contents.fileName;
+            Utils::writeFile(dirUpload, partData);
+            rangeStart = bpos;
         }
         if (body.compare(rangeStart, boundaryEnd.size(), boundaryEnd) == 0) {
             break;
         }
         rangeStart = endLine + 1;
-        
     }
 
 };
 
+void PostHandler::handleRawPost(const Location& location, HttpResponse& response, const std::string& body, const std::string contentType) {
+    
+    if (_types.count(contentType)) {
+        saveFile(contentType, location.getUploadStore(), body);
+        response.setStatus(201);
+        response.setContentType("text/html");
+        response.setBody("File uploaded successfully to " + location.getUploadStore());
+    } else {
+        response.setStatus(415);
+        response.setContentType("text/html");
+        response.setBody("415 Unsupported Media Type: The server only supports form uploads.");
+    }
+};
+
+void PostHandler::handleMultipart(const Location& location, HttpResponse& response, const std::string& body, const std::string contentType) {
+    
+    try {
+        processMuiltPart(contentType, body, location.getUploadStore());
+        response.setStatus(201);
+        response.setContentType("text/html");
+        response.setBody("File uploaded successfully to ");
+    } catch (const std::exception &e) {
+        std::cerr << "Error - " << e.what() << std::endl;
+        response.setStatus(500);
+        response.setContentType("text/html");
+        response.setBody("500 Internal Server Error: Failed to save the uploaded file.");
+    }
+};
+
+void PostHandler::handleFormUrlencoded(const Location& location, HttpResponse& response, const std::string& body) {
+
+    std::string uploadPath = location.getUploadStore() + "/upload_" + Utils::toString(std::time(0)) + ".txt";
+    if (Utils::writeFile(uploadPath, body)) {
+        response.setStatus(201);
+        response.setContentType("text/html");
+        response.setBody("File uploaded successfully to " + uploadPath);
+    } else {
+        response.setStatus(500);
+        response.setContentType("text/html");
+        response.setBody("500 Internal Server Error: Failed to save the uploaded file.");
+    }
+}
+
 HttpResponse PostHandler::process(HttpRequest &request, const Location &location)
 {
+    HttpResponse response;
     std::string contentType = request.getHeader("Content-Type");
     std::string body = request.getBody();
-    HttpResponse response;
     response.setHttpVersion(request.getHttpVersion());
-
-
-    // std::cout << request.getBuffer() << std::endl;
     
     initTypes();
-
     // diferenciar comportamento baseado no Content-Type
     if (contentType == "application/x-www-form-urlencoded") {
         // Processar dados de formulário simples
-        std::string uploadPath = location.getUploadStore() + "/upload_" + Utils::toString(std::time(0)) + ".txt";
-        std::cout << "Body (" << body.size() << " bytes): [" << body << "]" << std::endl;
-        if (Utils::writeFile(uploadPath, body)) {
-            std::cout << request.getPath() << std::endl;
-            response.setStatus(201);
-            response.setContentType("text/html");
-            response.setBody("File uploaded successfully to " + uploadPath);
-        } else {
-            response.setStatus(500);
-            response.setContentType("text/html");
-            response.setBody("500 Internal Server Error: Failed to save the uploaded file.");
-        }
+        handleFormUrlencoded(location, response, body);
     } else if (contentType.find("multipart/form-data") != std::string::npos) {
         // Processar upload de arquivo multipart
         // Aqui você precisaria implementar o parsing do corpo multipart
         // Para simplificação, vamos assumir que o arquivo foi salvo com sucesso
-        try {
-            processMuiltPart(contentType, body, location.getUploadStore());
-            response.setStatus(201);
-            response.setContentType("text/html");
-            response.setBody("File uploaded successfully to ");
-        } catch (const std::exception &e) {
-            std::cerr << "Error - " << e.what() << std::endl;
-            response.setStatus(500);
-            response.setContentType("text/html");
-            response.setBody("500 Internal Server Error: Failed to save the uploaded file.");
-        }
-
+        handleMultipart(location, response, body, contentType);
     } else {
-        if (_types.count(contentType)) {
-            saveFile(contentType, location.getUploadStore(), body);
-            response.setStatus(201);
-            response.setContentType("text/html");
-            response.setBody("File uploaded successfully to " + location.getUploadStore());
-        } else {
-            response.setStatus(415);
-            response.setContentType("text/html");
-            response.setBody("415 Unsupported Media Type: The server only supports form uploads.");
-        }
+        handleRawPost(location, response, body, contentType);
     }
     return response;
 }

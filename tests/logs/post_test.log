@@ -1,0 +1,9 @@
+[32m[Config]: Config file opened successfully.[0m
+[32m[Config]: Config file parsed successfully.[0m
+Servidor ouvindo em 127.0.0.1:8080
+Novo cliente no server 8080
+POST /upload HTTP/1.1
+Cliente desconectado.
+Novo cliente no server 8080
+POST /upload HTTP/1.1
+Cliente desconectado.
