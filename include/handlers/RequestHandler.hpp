@@ -5,13 +5,16 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "CgiHandler.hpp"
+#include "../interfaces/IMethodHandler.hpp"
 
 class RequestHandler {
 public:
     RequestHandler(const Config &config);
-    HttpResponse handle(HttpRequest &request, const Location &location);
+    static IMethodHandler* handle(const Config &config, HttpRequest &request, const Location &location);
     
 private:
+
+    static bool isCgiEnabledForExtension(HttpRequest &request, const Location &location);
     const Config &_config;
 };
 

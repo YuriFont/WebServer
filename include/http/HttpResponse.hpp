@@ -21,6 +21,9 @@ class HttpResponse {
     public:
 
         HttpResponse();
+        HttpResponse(const HttpResponse& other);
+        HttpResponse operator=(const HttpResponse& other);
+        ~HttpResponse();
         void setStatus(const int& statusCode);
         void setHttpVersion(const std::string& httpVersion);
         void setContentType(const std::string& contentType);

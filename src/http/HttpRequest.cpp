@@ -9,6 +9,10 @@ HttpRequest::HttpRequest() {
 
 };
 
+void HttpRequest::eraseBody() {
+    this->_body.erase();
+};
+
 HttpRequest::HttpRequest(const char *buffer): _buffer(buffer) {
     std::string req(buffer);
     

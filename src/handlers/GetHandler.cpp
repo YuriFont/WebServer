@@ -1,7 +1,51 @@
 #include "../../include/handlers/GetHandler.hpp"
 #include "../../include/utils/Utils.hpp"
 
-HttpResponse GetHandler::isDir(const std::string& path, const HttpRequest &request, const Location &location, struct stat info, HttpResponse response){
+
+// GetHandler::GetHandler(): _respons {};
+
+GetHandler::GetHandler(const GetHandler& other): _config(other._config), _request(other._request), _location(other._location), _response(NULL) {
+
+    if (other._response != NULL) {
+        this->_response = new HttpResponse(*other._response);
+    }
+};
+
+// GetHandler& GetHandler::operator=(const GetHandler& other) {
+
+//     if (this != &other) {
+//     }
+//     return (*this);
+// };
+
+GetHandler::~GetHandler() {
+
+    if (_response != NULL)
+        delete _response;
+};
+
+GetHandler::GetHandler(const Config& config, const HttpRequest& request, const Location& location) : _config(config), _request(request), _location(location), _response(NULL) {
+};
+
+
+void GetHandler::handleData(const std::string& chunk) {
+    (void)chunk;
+};
+
+bool GetHandler::isFinished() {
+
+    return (true);
+};
+
+IMethodHandler* GetHandler::clone() const {
+    return new GetHandler(*this);
+};
+
+HttpResponse& GetHandler::getResponse() {
+    return process(_request, _location);
+};
+
+void GetHandler::isDir(const std::string& path, const HttpRequest &request, const Location &location, struct stat info, HttpResponse& response){
     std::string indexPath = path +"/index.html";
     //Se houver index.html -> 200 OK
     if (stat(indexPath.c_str(), &info) == 0){
@@ -10,7 +54,7 @@ HttpResponse GetHandler::isDir(const std::string& path, const HttpRequest &reque
         response.setStatus(200);
         response.setContentType(Utils::getContentType(indexPath));
         response.setBody(body);
-        return response;
+        return ;
     }
     //Se autoindex estiver ativo -> 200 OK (gerar listagem)
     if (location.isAutoindex()){
@@ -18,46 +62,45 @@ HttpResponse GetHandler::isDir(const std::string& path, const HttpRequest &reque
         response.setStatus(200);
         response.setContentType("text/html");
         response.setBody(body);
-        return response;
+        return ;
     }
     //Arquivo forbidden
     response.setStatus(403);
     response.setContentType("text/html");
-    return response;
 }
 
-HttpResponse GetHandler::process(HttpRequest &request, const Location &location){
-    HttpResponse response;
+HttpResponse& GetHandler::process(const HttpRequest &request, const Location &location){
+
+    _response = new HttpResponse();
     struct stat info;
 
     //Construir o caminho do arquivo
     std::string path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
 
     //Configurar header básicos da resposta
-    response.setHttpVersion(request.getHttpVersion());
-    response.setConnectionClose(true);
+    _response->setHttpVersion(request.getHttpVersion());
 
     //Verificar se o arquivo/dir existe
     if (stat(path.c_str(), &info) != 0){
         //Arquivo não encontrado
-        response.setStatus(404);
-        response.setContentType("text/html");
-        return response;
+        _response->setStatus(404);
+        _response->setContentType("text/html");
+        return *_response;
     }
     //Se for diretório
     if(S_ISDIR(info.st_mode)){
-        response = GetHandler::isDir(path, request, location, info, response);
-        return response;
+        isDir(path, request, location, info, *_response);
+        return *_response;
     }
     //Se for um arquivo normal
     std::string body;
     if (!Utils::readFile(path, body)){
-        response.setStatus(500); //Arquivo sem permissão de leitura
-        response.setContentType("text/html");
-        return response;
+        _response->setStatus(500); //Arquivo sem permissão de leitura
+        _response->setContentType("text/html");
+        return *_response;
     }
-    response.setStatus(200);
-    response.setContentType(Utils::getContentType(path));
-    response.setBody(body);
-    return response;
+    _response->setStatus(200);
+    _response->setContentType(Utils::getContentType(path));
+    _response->setBody(body);
+    return *_response;
 }

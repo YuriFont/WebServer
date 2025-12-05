@@ -17,6 +17,7 @@ class Location {
         std::string getRedirect() const;
         int getRedirectCode() const;
         bool isUploadEnabled() const;
+        bool isCgiEnabled() const;
         std::string getUploadStore() const;
         const std::map<std::string, std::string>& getCgi() const;
 
@@ -41,6 +42,7 @@ class Location {
         std::string _redirect;
         int _redirectCode;
         bool _upload_enable;
+        bool _cgi_enable;
         std::string _uploadStore;
         std::map<std::string, std::string> _cgi;
 };

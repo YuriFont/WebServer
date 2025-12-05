@@ -47,14 +47,13 @@ void Server::registerSocketsInEpoll() {
 void Server::handleNewConnection(int server_fd) {
     int client_fd = accept(server_fd, NULL, NULL);
     if (client_fd < 0) return;
-
     fcntl(client_fd, F_SETFL, O_NONBLOCK);
 
     Client client(client_fd);
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &client.getDataEvent());
-
     client_server[client_fd] = &server_by_fd[server_fd];
     clients[client_fd] = client;
+    
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &clients[client_fd].getDataEvent());
     std::cout << "New client in the server " << server_by_fd[server_fd].getPort() << std::endl;
 }
 
@@ -79,54 +78,85 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
     return locs.at(match);
 }
 
-void Server::handleClientRequest(int client_fd) {
-    char buffer[2048];
-    int bytes = recv(client_fd, buffer, sizeof(buffer), 0);
+void Server::removeClient(int client_fd) {
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
+    close(client_fd);
+    clients.erase(client_fd);
+}
+
+void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize, int& bytes) {
+    
+    bytes = recv(client_fd, buffer, bufSize, 0);
 
     if (bytes <= 0) {
-        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
-        close(client_fd);
-        clients.erase(client_fd);
+        removeClient(client_fd);
         std::cout << "Client disconnected." << std::endl;
-        return;
     }
-    Client& client = clients[client_fd];
+}
+
+IMethodHandler* Server::buildMethodHandler(Client& client , int &client_fd) {
+
+    HttpRequest& request = client.getRequest();
+    const Location &location = findLocation(client_server[client_fd], request);
+    return RequestHandler::handle(_config, request, location);
+}
+
+bool Server::removeMethodHandler(Client& client, HttpResponse& resp) {
+    
+    bool closeConnection = resp.isConnectionClose();
+    
+    delete client.handler;
+    client.handler = NULL;
+    
+    return closeConnection;
+}
+
+void Server::finalizeClientConnection(const int &client_fd, Client& client, const bool& closeConnection) {
+
+    if (closeConnection) {
+        removeClient(client_fd);
+    } else {
+        client.cleanData();
+    }
+}
+
+void Server::sendResponse(const int &client_fd, Client& client) {
+    
+    HttpResponse& resp = client.handler->getResponse();
+    send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
+    bool closeConnection = removeMethodHandler(client, resp);
+    finalizeClientConnection(client_fd, client, closeConnection);
+}
+
+void Server::addBuffer(Client& client, char* buffer, int& bytes) {
 
     if (!client.isAllHeaders()) {
         client.addBuffer(std::string(buffer, bytes));
     } else {
         client.addBody(std::string(buffer, bytes));
     }
+}
 
+void Server::handleClientRequest(int client_fd) {
+    
+    char buffer[2048];
+    int bytes = 0;
+
+    readClientBuffer(client_fd, buffer, sizeof(buffer), bytes);
+    if (bytes <= 0) {
+        return ;
+    }
+    Client& client = clients[client_fd];
+    addBuffer(client, buffer, bytes);
     if (!client.isAllHeaders())
         return ;
-    if (client.getLenBody() > ((int)client.getRequest().getBody().size()))
-        return ;
-
-    // agora podemos criar o request completo
-    HttpRequest& request = client.getRequest();
-    const Location &location = findLocation(client_server[client_fd], request);
-
-    // LOG
-    std::cout << request.getMethod() << " " << request.getPath() << " " << request.getHttpVersion() << std::endl;
-
-    if (!location.isMethodAllowed(request.getMethod()))
-    {
-        //TODO: implementar método não permitido
-        HttpResponse response = HttpResponse::methodNotAllowed(location.getMethods());
-        send(client_fd, response.toString().c_str(), response.toString().size(), 0);
-        return;
+    if (client.handler == NULL) {
+        client.handler = buildMethodHandler(client, client_fd);
     }
-
-    RequestHandler handler(_config);
-    HttpResponse response = handler.handle(request, location);
-    send(client_fd, response.toString().c_str(), response.toString().size(), 0);
-    if (response.isConnectionClose()) {
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
-        close(client_fd);
-        clients.erase(client_fd);
-    } else {
-        client.cleanData();
+    client.handler->handleData(client.getRequest().getBody());
+    client.eraseBody();
+    if (client.handler->isFinished()) {
+        sendResponse(client_fd, client);
     }
 }
 

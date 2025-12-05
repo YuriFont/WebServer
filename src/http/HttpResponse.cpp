@@ -6,6 +6,28 @@ HttpResponse::HttpResponse(): contentLength(0), isNotAllow(false), connectionClo
     this->setHttpVersion("HTTP/1.1");
 };
 
+HttpResponse::HttpResponse(const HttpResponse& other) {
+    *this = other;
+};
+
+HttpResponse HttpResponse::operator=(const HttpResponse& other) {
+
+    if (this != &other) {
+
+        this->status = other.status;
+        this->httpVersion = other.httpVersion;
+        this->contentType = other.contentType;
+        this->contentLength = other.contentLength;
+        this->body = other.body;
+        this->allowedMethods = other.allowedMethods;
+        this->isNotAllow = other.isNotAllow;
+        this->connectionClose = other.connectionClose;
+        this->_headers = other._headers;
+    }
+    return *this;
+};
+HttpResponse::~HttpResponse() {};
+
 void HttpResponse::setStatus(const int& statusCode) {
 
     this->status.setCodeStatus(statusCode);

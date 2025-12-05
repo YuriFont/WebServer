@@ -1,7 +1,7 @@
 #include "../../include/config/Location.hpp"
 #include "../../include/utils/Utils.hpp"
 
-Location::Location() : _autoindex(false), _upload_enable(false) {}
+Location::Location() : _autoindex(false), _upload_enable(false), _cgi_enable(false) {}
 
 Location::~Location() {}
 
@@ -169,6 +169,10 @@ void Location::setUploadStore(std::istringstream &iss) {
     _uploadStore = rootUploadPath;
 }
 
+bool Location::isCgiEnabled() const {
+    return this->_cgi_enable;
+};
+
 bool Location::hasCgiForExtension(const std::string &ext) const {
     return _cgi.find(ext) != _cgi.end();
 }
@@ -197,6 +201,8 @@ void Location::addCgi(std::istringstream &iss) {
     if (!S_ISREG(info.st_mode) || !(info.st_mode & S_IXUSR))
         throw(std::runtime_error("Error in `cgi`: path is not an executable file"));
 
+    if (!_cgi_enable)
+        _cgi_enable = true;
     _cgi[extension] = scriptPath;
 }
 
