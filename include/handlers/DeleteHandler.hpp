@@ -4,10 +4,28 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../config/Location.hpp"
+#include "../config/Config.hpp"
+#include "../../include/interfaces/IMethodHandler.hpp"
 
-class DeleteHandler {
+class DeleteHandler: public IMethodHandler {
+
+    private:
+        const Config& _config;
+        const HttpRequest& _request;
+        const Location& _location;
+        HttpResponse* _response;
+        bool _isFinish;
+        DeleteHandler();
+        DeleteHandler& operator=(const DeleteHandler &other);
     public:
-        static HttpResponse process(HttpRequest &request, const Location &location);
+        DeleteHandler(const Config& config, const HttpRequest& request, const Location& location);
+        DeleteHandler(const DeleteHandler &other);
+        HttpResponse& process(const HttpRequest &request, const Location &location);
+        virtual ~DeleteHandler();
+        virtual void handleData(const std::string& chunk);
+        virtual bool isFinished();
+        virtual HttpResponse& getResponse();
+        virtual IMethodHandler* clone() const;
 };
 
 #endif

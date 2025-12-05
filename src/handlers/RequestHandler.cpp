@@ -45,8 +45,8 @@ IMethodHandler* RequestHandler::handle(const Config &config, HttpRequest &reques
     // if (method == "POST")
     //     return PostHandler::process(request, location);
 
-    // if (method == "DELETE")
-    //     return DeleteHandler::process(request, location);
+    if (method == "DELETE")
+        return new DeleteHandler(config, request, location);
 
     // throw std::runtime_error("Unsupported HTTP method: " + method);
     return NULL;
