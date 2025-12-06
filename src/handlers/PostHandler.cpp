@@ -3,6 +3,47 @@
 
 std::map<std::string, std::string> PostHandler::_types;
 
+
+PostHandler::PostHandler(const Config& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
+
+};
+
+PostHandler::PostHandler(const PostHandler& other): _config(other._config), _request(other._request), _location(other._location), _response(NULL), _isFinish(other._isFinish) {
+
+    if (other._response != NULL) {
+        this->_response = new HttpResponse(*other._response);
+    }
+};
+
+PostHandler::~PostHandler() {
+    if (_response != NULL)
+        delete _response;
+};
+void PostHandler::handleData(const std::string& chunk) {
+
+    _body.append(chunk);
+    if (((int)_body.size()) >= _request.getContentLength()) {
+        process(_request, _location);
+        _isFinish = true;
+    }
+};
+
+bool PostHandler::isFinished() {
+    return (_isFinish);
+};
+
+HttpResponse& PostHandler::getResponse() {
+
+    HttpResponse& response = *_response;
+    return response;
+
+    // process(_request, _location);
+};
+
+IMethodHandler* PostHandler::clone() const {
+    return new PostHandler(*this);
+};
+
 void PostHandler::initTypes() {
 
     if (!_types.empty())
@@ -205,17 +246,17 @@ void PostHandler::processMuiltPart(const std::string& contentType, const std::st
 
 };
 
-void PostHandler::handleRawPost(const Location& location, HttpResponse& response, const std::string& body, const std::string contentType) {
+void PostHandler::handleRawPost(const Location& location, const std::string contentType) {
     
     if (_types.count(contentType)) {
-        saveFile(contentType, location.getUploadStore(), body);
-        response.setStatus(201);
-        response.setContentType("text/html");
-        response.setBody("File uploaded successfully to " + location.getUploadStore());
+        saveFile(contentType, location.getUploadStore(), _body);
+        _response->setStatus(201);
+        _response->setContentType("text/html");
+        _response->setBody("File uploaded successfully to " + location.getUploadStore());
     } else {
-        response.setStatus(415);
-        response.setContentType("text/html");
-        response.setBody("415 Unsupported Media Type: The server only supports form uploads.");
+        _response->setStatus(415);
+        _response->setContentType("text/html");
+        _response->setBody("415 Unsupported Media Type: The server only supports form uploads.");
     }
 };
 
@@ -248,26 +289,27 @@ void PostHandler::handleFormUrlencoded(const Location& location, HttpResponse& r
     }
 }
 
-HttpResponse PostHandler::process(HttpRequest &request, const Location &location)
+HttpResponse& PostHandler::process(const HttpRequest &request, const Location &location)
 {
-    HttpResponse response;
+    _response = new HttpResponse();
     std::string contentType = request.getHeader("Content-Type");
-    std::string body = request.getBody();
-    response.setHttpVersion(request.getHttpVersion());
+    // std::string body = request.getBody();
+    _response->setHttpVersion(request.getHttpVersion());
     
     initTypes();
-    // diferenciar comportamento baseado no Content-Type
-    if (contentType == "application/x-www-form-urlencoded") {
-        // Processar dados de formulário simples
-        handleFormUrlencoded(location, response, body);
-    } else if (contentType.find("multipart/form-data") != std::string::npos) {
-        // Processar upload de arquivo multipart
-        // Aqui você precisaria implementar o parsing do corpo multipart
-        // Para simplificação, vamos assumir que o arquivo foi salvo com sucesso
-        handleMultipart(location, response, body, contentType);
-    } else {
-        handleRawPost(location, response, body, contentType);
-    }
-    return response;
+    handleRawPost(location, contentType);
+    // // diferenciar comportamento baseado no Content-Type
+    // if (contentType == "application/x-www-form-urlencoded") {
+    //     // Processar dados de formulário simples
+    //     handleFormUrlencoded(location, response, body);
+    // } else if (contentType.find("multipart/form-data") != std::string::npos) {
+    //     // Processar upload de arquivo multipart
+    //     // Aqui você precisaria implementar o parsing do corpo multipart
+    //     // Para simplificação, vamos assumir que o arquivo foi salvo com sucesso
+    //     handleMultipart(location, response, body, contentType);
+    // } else {
+    //     handleRawPost(location, response, body, contentType);
+    // }
+    return *_response;
 }
 

@@ -4,11 +4,20 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../config/Location.hpp"
+#include "../config/Config.hpp"
+#include "../interfaces/IMethodHandler.hpp"
 #include <map>
 
-class PostHandler {
+class PostHandler : public IMethodHandler {
 
     private:
+
+        const Config& _config;
+        const HttpRequest& _request;
+        const Location& _location;
+        HttpResponse* _response;
+        std::string _body;
+        bool _isFinish;
 
         typedef struct contentDisposition {
             std::string disposition;
@@ -16,22 +25,31 @@ class PostHandler {
             std::string fileName;
             std::string contentType;
         } content;
-
         static std::map<std::string, std::string> _types;
-        PostHandler();
         static void initTypes();
-        static std::string getExtension(const std::string& type);
-        static void saveFile(const std::string& contentType, const std::string& uploadStore, const std::string& body);
-        static std::string getBoundary(const std::string& contentType);
-        static void processMuiltPart(const std::string& contentType, const std::string& body, const std::string& uploadPath);
-        static void getContents(const std::string& line, content& contents);
-        static void parseHeaderLine(const std::string& line, content& result);
-        static std::string nextLine(const std::string& body, size_t& rangeStart, size_t& endLine);
-        static void handleRawPost(const Location& location, HttpResponse& response, const std::string& body,  const std::string contentType);
-        static void handleMultipart(const Location& location, HttpResponse& response, const std::string& body, const std::string contentType);
-        static void handleFormUrlencoded(const Location& location, HttpResponse& response, const std::string& body);
+
+        PostHandler();
+        PostHandler& operator=(const PostHandler& other);
+
+        std::string getExtension(const std::string& type);
+        void saveFile(const std::string& contentType, const std::string& uploadStore, const std::string& body);
+        std::string getBoundary(const std::string& contentType);
+        void processMuiltPart(const std::string& contentType, const std::string& body, const std::string& uploadPath);
+        void getContents(const std::string& line, content& contents);
+        void parseHeaderLine(const std::string& line, content& result);
+        std::string nextLine(const std::string& body, size_t& rangeStart, size_t& endLine);
+        void handleRawPost(const Location& location, const std::string contentType);
+        void handleMultipart(const Location& location, HttpResponse& response, const std::string& body, const std::string contentType);
+        void handleFormUrlencoded(const Location& location, HttpResponse& response, const std::string& body);
     public:
-        static HttpResponse process(HttpRequest &request, const Location &location);
+        HttpResponse& process(const HttpRequest &request, const Location &location);
+        PostHandler(const Config& config, const HttpRequest& request, const Location& location);
+        PostHandler(const PostHandler& other);
+        virtual ~PostHandler();
+        virtual void handleData(const std::string& chunk);
+        virtual bool isFinished();
+        virtual HttpResponse& getResponse();
+        virtual IMethodHandler* clone() const;
 };
 
 #endif

@@ -42,8 +42,8 @@ IMethodHandler* RequestHandler::handle(const Config &config, HttpRequest &reques
     if (method == "GET")
         return new GetHandler(config, request, location);
 
-    // if (method == "POST")
-    //     return PostHandler::process(request, location);
+    if (method == "POST")
+        return new PostHandler(config, request, location);
 
     if (method == "DELETE")
         return new DeleteHandler(config, request, location);
