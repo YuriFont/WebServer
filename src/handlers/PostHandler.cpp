@@ -1,12 +1,26 @@
 #include "../../include/handlers/PostHandler.hpp"
 #include "../../include/utils/Utils.hpp"
 
-HttpResponse PostHandler::process(HttpRequest &request, const Location &location)
+//O tamanho da requisição está no content-length (tamanho em bytes do tamanho da requisição)
+//se for maior que o config - error e devolve pro usuario - verificar - client_max_body_size
+//Erro do servidor ou do cliente? Do cliente
+//Content too large 413
+
+HttpResponse PostHandler::process(HttpRequest &request, const Location &location, const ServerConfig &serverConfig)
 {
     std::string contentType = request.getHeader("Content-Type");
     std::string body = request.getBody();
+    size_t bodySize = request.getBody().size();
+    size_t maxSize = serverConfig.client_max_body_size;
     HttpResponse response;
     
+    if (bodySize > maxSize){
+        response.setStatus(413);
+        response.setContentType("text/html");
+        response.setBody("<h1>413 Request Entity Too Large</h1>");
+        response.setConnectionClose(true);
+        return response;
+    }
 
     if (contentType == "image/jpeg") {
         std::string uploadPath = location.getUploadStore() + "/upload_" + Utils::toString(1) + ".jpg";

@@ -7,7 +7,7 @@
 
 RequestHandler::RequestHandler(const Config &config) : _config(config) {}
 
-HttpResponse RequestHandler::handle(HttpRequest &request, const Location &location)
+HttpResponse RequestHandler::handle(HttpRequest &request, const Location &location, const ServerConfig &server)
 {
     //Redirecionamento global (antes de qualquer método)
     if (!location.getRedirect().empty()){
@@ -42,7 +42,7 @@ HttpResponse RequestHandler::handle(HttpRequest &request, const Location &locati
         return GetHandler::process(request, location);
 
     if (method == "POST")
-        return PostHandler::process(request, location);
+        return PostHandler::process(request, location, server);
 
     if (method == "DELETE")
         return DeleteHandler::process(request, location);

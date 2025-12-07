@@ -107,6 +107,14 @@ void Server::handleClientRequest(int client_fd) {
     HttpRequest& request = client.getRequest();
     const Location &location = findLocation(client_server[client_fd], request);
 
+    ServerConfig *serverPtr = client_server[client_fd];
+    if (!serverPtr) {
+        std::cerr << "Error: client has no associated server config\n";
+        return; // ou trate como 500
+    }
+
+    const ServerConfig &server = *serverPtr;
+
     // LOG
     std::cout << request.getMethod() << " " << request.getPath() << " " << request.getHttpVersion() << std::endl;
 
@@ -119,12 +127,15 @@ void Server::handleClientRequest(int client_fd) {
     }
 
     RequestHandler handler(_config);
-    HttpResponse response = handler.handle(request, location);
+    HttpResponse response = handler.handle(request, location, server);
     send(client_fd, response.toString().c_str(), response.toString().size(), 0);
     if (response.isConnectionClose()) {
         epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
         close(client_fd);
         clients.erase(client_fd);
+    }
+    else{
+        clients[client_fd].cleanData();
     }
 }
 
