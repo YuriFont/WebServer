@@ -2,7 +2,7 @@
 #include "../../include/utils/Utils.hpp"
 
 
-RedirectHandler::RedirectHandler(const Config& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
+RedirectHandler::RedirectHandler(const ServerConfig& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
 
 };
 

@@ -3,14 +3,14 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../config/Location.hpp"
-#include "../config/Config.hpp"
+#include "../core/ServerConfig.hpp"
 #include "../interfaces/IMethodHandler.hpp"
 
 class RedirectHandler: public IMethodHandler {
 
     private:
 
-        const Config& _config;
+        const ServerConfig& _config;
         const HttpRequest& _request;
         const Location& _location;
         HttpResponse* _response;
@@ -20,7 +20,7 @@ class RedirectHandler: public IMethodHandler {
         RedirectHandler& operator=(const RedirectHandler& other);
     public:
 
-        RedirectHandler(const Config& config, const HttpRequest& request, const Location& location);
+        RedirectHandler(const ServerConfig& config, const HttpRequest& request, const Location& location);
         RedirectHandler(const RedirectHandler& other);
         virtual ~RedirectHandler();
         virtual void handleData(const std::string& chunk);

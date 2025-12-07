@@ -98,7 +98,8 @@ IMethodHandler* Server::buildMethodHandler(Client& client , int &client_fd) {
 
     HttpRequest& request = client.getRequest();
     const Location &location = findLocation(client_server[client_fd], request);
-    return RequestHandler::handle(_config, request, location);
+    const ServerConfig& serverConfig = *client_server[client_fd];
+    return RequestHandler::handle(serverConfig, request, location);
 }
 
 bool Server::removeMethodHandler(Client& client, HttpResponse& resp) {
@@ -157,6 +158,9 @@ void Server::handleClientRequest(int client_fd) {
     client.eraseBody();
     if (client.handler->isFinished()) {
         sendResponse(client_fd, client);
+    }
+    else{
+        clients[client_fd].cleanData();
     }
 }
 

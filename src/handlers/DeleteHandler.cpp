@@ -1,7 +1,7 @@
 #include "../../include/handlers/DeleteHandler.hpp"
 #include "../../include/utils/Utils.hpp"
 
-DeleteHandler::DeleteHandler(const Config& config, const HttpRequest& request, const Location& location):  _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
+DeleteHandler::DeleteHandler(const ServerConfig& config, const HttpRequest& request, const Location& location):  _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
 
 };
 DeleteHandler::DeleteHandler(const DeleteHandler &other): _config(other._config), _request(other._request), _location(other._location), _response(NULL), _isFinish(other._isFinish) {

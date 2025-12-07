@@ -4,7 +4,7 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../config/Location.hpp"
-#include "../config/Config.hpp"
+#include "../core/ServerConfig.hpp"
 #include "../utils/Utils.hpp"
 #include "../interfaces/IMethodHandler.hpp"
 
@@ -12,7 +12,7 @@ class CgiHandler : public IMethodHandler {
 
     private:
 
-        const Config& _config;
+        const ServerConfig& _config;
         const HttpRequest& _request;
         const Location& _location;
         HttpResponse* _response;
@@ -27,7 +27,7 @@ class CgiHandler : public IMethodHandler {
         CgiHandler();
         CgiHandler& operator=(const CgiHandler& other);
     public:
-        CgiHandler(const Config& config, const HttpRequest& request, const Location& location);
+        CgiHandler(const ServerConfig& config, const HttpRequest& request, const Location& location);
         CgiHandler(const CgiHandler& other);
         ~CgiHandler(); 
         virtual void handleData(const std::string& chunk);

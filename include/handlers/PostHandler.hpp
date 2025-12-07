@@ -4,7 +4,7 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../config/Location.hpp"
-#include "../config/Config.hpp"
+#include "../core/ServerConfig.hpp"
 #include "../interfaces/IMethodHandler.hpp"
 #include <map>
 
@@ -12,7 +12,7 @@ class PostHandler : public IMethodHandler {
 
     private:
 
-        const Config& _config;
+        const ServerConfig& _config;
         const HttpRequest& _request;
         const Location& _location;
         HttpResponse* _response;
@@ -43,7 +43,7 @@ class PostHandler : public IMethodHandler {
         void handleFormUrlencoded(const Location& location, HttpResponse& response, const std::string& body);
     public:
         HttpResponse& process(const HttpRequest &request, const Location &location);
-        PostHandler(const Config& config, const HttpRequest& request, const Location& location);
+        PostHandler(const ServerConfig& config, const HttpRequest& request, const Location& location);
         PostHandler(const PostHandler& other);
         virtual ~PostHandler();
         virtual void handleData(const std::string& chunk);

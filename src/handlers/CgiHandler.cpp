@@ -1,7 +1,7 @@
 #include "../../include/handlers/CgiHandler.hpp"
 
 
-CgiHandler::CgiHandler(const Config& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
+CgiHandler::CgiHandler(const ServerConfig& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
 
 };
 
@@ -12,12 +12,6 @@ CgiHandler::CgiHandler(const CgiHandler& other): _config(other._config), _reques
     }
 };
 
-// CgiHandler& CgiHandler::operator=(const CgiHandler& other) {
-
-//     if (this != &other) {
-//     }
-//     return (*this);
-// };
 
 CgiHandler::~CgiHandler() {
 
@@ -81,7 +75,7 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     env.push_back("SERVER_NAME=localhost");
     env.push_back("SERVER_PORT=8080");
     env.push_back("PATH_INFO=" + request.getPath());
-    env.push_back("REDIRECT_STATUS=200");
+    env.push_back("REDIRECT_STATUS=200"); //Tem que puxar o retorno do processo aqui
     return env;
 }
 
@@ -132,9 +126,10 @@ HttpResponse& CgiHandler::responseHTTP(const std::string &output)
 {
     size_t headerEnd = output.find("\r\n\r\n");
     if (headerEnd == std::string::npos)
-        headerEnd = output.find("\n\n");
-
+        headerEnd = output.find("\n\n"); //Sempre é \r\n\r\n
+    
     _response = new HttpResponse();
+
     //Cabeçalho invalido
     if (headerEnd == std::string::npos)
     {

@@ -4,14 +4,14 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../config/Location.hpp"
-#include "../config/Config.hpp"
+#include "../core/ServerConfig.hpp"
 #include "../interfaces/IMethodHandler.hpp"
 
 class GetHandler : public IMethodHandler {
 
     private:
 
-        const Config& _config;
+        const ServerConfig& _config;
         const HttpRequest& _request;
         const Location& _location;
         HttpResponse* _response;
@@ -20,7 +20,7 @@ class GetHandler : public IMethodHandler {
         GetHandler();
         GetHandler& operator=(const GetHandler& other);
     public:
-        GetHandler(const Config& config, const HttpRequest& request, const Location& location);
+        GetHandler(const ServerConfig& config, const HttpRequest& request, const Location& location);
         GetHandler(const GetHandler& other);
         ~GetHandler();
         virtual void handleData(const std::string& chunk);

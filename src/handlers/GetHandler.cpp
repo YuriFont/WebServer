@@ -24,7 +24,7 @@ GetHandler::~GetHandler() {
         delete _response;
 };
 
-GetHandler::GetHandler(const Config& config, const HttpRequest& request, const Location& location) : _config(config), _request(request), _location(location), _response(NULL) {
+GetHandler::GetHandler(const ServerConfig& config, const HttpRequest& request, const Location& location) : _config(config), _request(request), _location(location), _response(NULL) {
 };
 
 

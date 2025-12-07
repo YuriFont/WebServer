@@ -6,7 +6,7 @@
 #include "../../include/handlers/CgiHandler.hpp"
 #include "../../include/handlers/RedirectHandler.hpp"
 
-RequestHandler::RequestHandler(const Config &config) : _config(config) {}
+RequestHandler::RequestHandler(const ServerConfig &config) : _config(config) {}
 
 bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Location &location) {
 
@@ -29,7 +29,7 @@ bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Locati
     return false;
 }
 
-IMethodHandler* RequestHandler::handle(const Config &config, HttpRequest &request, const Location &location)
+IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &request, const Location &location)
 {
 
     if (!location.getRedirect().empty()) {
