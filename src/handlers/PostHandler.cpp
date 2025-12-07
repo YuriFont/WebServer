@@ -1,11 +1,6 @@
 #include "../../include/handlers/PostHandler.hpp"
 #include "../../include/utils/Utils.hpp"
 
-//O tamanho da requisição está no content-length (tamanho em bytes do tamanho da requisição)
-//se for maior que o config - error e devolve pro usuario - verificar - client_max_body_size
-//Erro do servidor ou do cliente? Do cliente
-//Content too large 413
-
 HttpResponse PostHandler::process(HttpRequest &request, const Location &location, const ServerConfig &serverConfig)
 {
     std::string contentType = request.getHeader("Content-Type");
