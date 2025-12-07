@@ -15,7 +15,7 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     env.push_back("SERVER_NAME=localhost");
     env.push_back("SERVER_PORT=8080");
     env.push_back("PATH_INFO=" + request.getPath());
-    env.push_back("REDIRECT_STATUS=200");
+    env.push_back("REDIRECT_STATUS=200"); //Tem que puxar o retorno do processo aqui
     return env;
 }
 
@@ -66,8 +66,7 @@ HttpResponse CgiHandler::responseHTTP(const std::string &output, HttpResponse &r
 {
     size_t headerEnd = output.find("\r\n\r\n");
     if (headerEnd == std::string::npos)
-        headerEnd = output.find("\n\n");
-
+        headerEnd = output.find("\n\n"); //Sempre é \r\n\r\n
 
     //Cabeçalho invalido
     if (headerEnd == std::string::npos)

@@ -9,7 +9,7 @@
 class RequestHandler {
 public:
     RequestHandler(const Config &config);
-    HttpResponse handle(HttpRequest &request, const Location &location);
+    HttpResponse handle(HttpRequest &request, const Location &location, const ServerConfig &server);
     
 private:
     const Config &_config;
