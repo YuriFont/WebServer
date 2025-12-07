@@ -60,7 +60,19 @@ HttpResponse PostHandler::process(HttpRequest &request, const Location &location
             response.setContentType("text/html");
             response.setBody("500 Internal Server Error: Failed to save the uploaded file.");
         }
-    } else {
+    } else if (contentType == "text/plain" || contentType == "plain/text") {
+        std::string uploadPath = location.getUploadStore() + "/upload_" + Utils::toString(std::time(0)) + ".txt";
+        if (Utils::writeFile(uploadPath, body)) {
+            response.setStatus(201);
+            response.setContentType("text/html");
+            response.setBody("File uploaded successfully to " + uploadPath);
+        } else {
+            response.setStatus(500);
+            response.setContentType("text/html");
+            response.setBody("500 Internal Server Error: Failed to save the uploaded file.");
+        }
+    }
+    else {
         // Tipo de conteúdo não suportado
         response.setStatus(415);
         response.setContentType("text/html");
