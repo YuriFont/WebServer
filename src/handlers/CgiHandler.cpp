@@ -125,8 +125,10 @@ std::string CgiHandler::readCgiOutput(int outPipe[2], pid_t pid)
 HttpResponse& CgiHandler::responseHTTP(const std::string &output)
 {
     size_t headerEnd = output.find("\r\n\r\n");
-    if (headerEnd == std::string::npos)
+    if (headerEnd == std::string::npos) {
+        
         headerEnd = output.find("\n\n"); //Sempre é \r\n\r\n
+    }
     
     _response = new HttpResponse();
 

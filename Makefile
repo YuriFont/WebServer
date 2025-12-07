@@ -12,7 +12,8 @@ HANDLERS =	DeleteHandler.cpp \
 			PostHandler.cpp \
 			RequestHandler.cpp\
 			CgiHandler.cpp \
-			RedirectHandler.cpp
+			RedirectHandler.cpp \
+			NotImplementedHandler.cpp
 
 HTTP =		HttpRequest.cpp \
 			HttpResponse.cpp \

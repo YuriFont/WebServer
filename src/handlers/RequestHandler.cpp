@@ -5,6 +5,7 @@
 #include "../../include/http/HttpResponse.hpp"
 #include "../../include/handlers/CgiHandler.hpp"
 #include "../../include/handlers/RedirectHandler.hpp"
+#include "../../include/handlers/NotImplementedHandler.hpp"
 
 RequestHandler::RequestHandler(const ServerConfig &config) : _config(config) {}
 
@@ -48,6 +49,5 @@ IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &
     if (method == "DELETE")
         return new DeleteHandler(config, request, location);
 
-    // throw std::runtime_error("Unsupported HTTP method: " + method);
-    return NULL;
+    return new NotImplementedHandler(config, request, location);
 }
