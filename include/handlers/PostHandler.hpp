@@ -8,6 +8,7 @@
 #include "../interfaces/IMethodHandler.hpp"
 #include "../abstracts/ABodyProcessor.hpp"
 #include "../bodyProcessor/RawProcessor.hpp"
+#include "../bodyProcessor/MultipartProcessor.hpp"
 #include <map>
 
 class PostHandler : public IMethodHandler {

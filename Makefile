@@ -15,7 +15,8 @@ HANDLERS =	DeleteHandler.cpp \
 			RedirectHandler.cpp \
 			NotImplementedHandler.cpp
 
-BODYPROCESSOR = RawProcessor.cpp
+BODYPROCESSOR = RawProcessor.cpp \
+				MultipartProcessor.cpp
 
 ABSTRACTS = ABodyProcessor.cpp
 

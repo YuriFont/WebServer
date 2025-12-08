@@ -24,7 +24,10 @@ PostHandler::~PostHandler() {
 void PostHandler::handleData(const std::string& chunk) {
 
     if (_bodyProcessor == NULL) {
-        _bodyProcessor = new RawProcessor(_config, _location, _request);
+        if (_request.getHeader("Content-Type").find("multipart/form-data") != std::string::npos)
+            _bodyProcessor = new MultipartProcessor(_config, _location, _request);
+        else
+            _bodyProcessor = new RawProcessor(_config, _location, _request);
     }
     _bodyProcessor->handleChunk(chunk);
     if (_bodyProcessor->isFinished()) {
@@ -130,12 +133,10 @@ void PostHandler::saveFile(const std::string& contentType, const std::string& up
 std::string PostHandler::getBoundary(const std::string& contentType) {
 
     size_t pos = contentType.find("boundary=");
-    // std::cout << contentType << std::endl;
 
     if (pos == std::string::npos) {
         std::cout << "Errou" << std::endl;
     }
-
     pos += 9;
     std::string boundary = contentType.substr(pos);
     boundary =  "--" + boundary;

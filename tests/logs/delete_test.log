@@ -1,11 +1,7 @@
 [32m[Config]: Config file opened successfully.[0m
 [32m[Config]: Config file parsed successfully.[0m
-Servidor ouvindo em 127.0.0.1:8080
-Novo cliente no server 8080
-DELETE /upload/test1.txt HTTP/1.1
-Novo cliente no server 8080
-DELETE /upload/notfound.txt HTTP/1.1
-Novo cliente no server 8080
-DELETE /upload/dirtest HTTP/1.1
-Novo cliente no server 8080
-DELETE /upload/dirtest/protected.txt HTTP/1.1
+Server listening on 127.0.0.1:8080
+New client in the server 8080
+New client in the server 8080
+New client in the server 8080
+New client in the server 8080

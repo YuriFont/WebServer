@@ -69,6 +69,7 @@ void Client::addBuffer(const std::string& request) {
             this->isHeadersReceived = true;
             this->request.parser();
             this->contentLength = this->request.getContentLength();
+            std::cout << this->request.getBuffer() << std::endl;
             this->isHeadersParsed = true;
         }
     }
