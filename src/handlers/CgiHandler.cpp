@@ -125,16 +125,15 @@ std::string CgiHandler::readCgiOutput(int outPipe[2], pid_t pid)
 HttpResponse& CgiHandler::responseHTTP(const std::string &output)
 {
     size_t headerEnd = output.find("\r\n\r\n");
+    size_t sepLen = 4;
+
     if (headerEnd == std::string::npos) {
-        
-        headerEnd = output.find("\n\n"); //Sempre é \r\n\r\n
+        headerEnd = output.find("\n\n");
+        sepLen = 2;
     }
-    
     _response = new HttpResponse();
 
-    //Cabeçalho invalido
-    if (headerEnd == std::string::npos)
-    {
+    if (headerEnd == std::string::npos) {
         _response->setStatus(500);
         _response->setContentType("text/html");
         _response->setBody("<h1>CGI Internal Error</h1>");
@@ -142,20 +141,53 @@ HttpResponse& CgiHandler::responseHTTP(const std::string &output)
     }
 
     std::string headers = output.substr(0, headerEnd);
-    std::string body = output.substr(headerEnd + 4);
+    std::string body    = output.substr(headerEnd + sepLen);
 
-    // Procura por Content-Type
+    int status = 200;
+
+    // --- Parse Status ---
+    size_t posStatus = headers.find("Status:");
+    if (posStatus != std::string::npos) {
+        size_t start = posStatus + 7;
+        size_t end   = headers.find("\n", start);
+        std::string statusLine = Utils::trim(headers.substr(start, end - start));
+        int code = std::atoi(statusLine.c_str());
+        if (code >= 100 && code <= 599)
+            status = code;
+    }
+
+    // --- Parse Content-Type ---
     std::string contentType = "text/html";
-    size_t pos = headers.find("Content-Type:");
-    if (pos != std::string::npos)
-    {
-        size_t start = pos + 13;
-        size_t end = headers.find("\r\n", start);
+    size_t posCT = headers.find("Content-Type:");
+    if (posCT != std::string::npos) {
+        size_t start = posCT + 13;
+        size_t end = headers.find("\n", start);
         contentType = Utils::trim(headers.substr(start, end - start));
     }
 
-    _response->setStatus(200);
+    // --- Parse Location ---
+    size_t posLoc = headers.find("Location:");
+    bool hasLocation = false;
+    if (posLoc != std::string::npos) {
+        size_t start = posLoc + 9;
+        size_t end = headers.find("\r\n", start);
+        std::string loc = Utils::trim(headers.substr(start, end - start));
+        _response->setHeader("Location", loc);
+        hasLocation = true;
+    }
+
+    _response->setStatus(status);
     _response->setContentType(contentType);
+
+    // --- SPECIAL RULE FOR REDIRECTS ---
+    if (status >= 300 && status < 400 && hasLocation) {
+        _response->setBody("");               // body EMPTY
+        _response->setHeader("Content-Length", "0");
+        _response->setConnectionClose(true);
+        return *_response;
+    }
+
+    // Normal CGI _response
     _response->setBody(body);
     _response->setConnectionClose(true);
     return *_response;
