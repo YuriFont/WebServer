@@ -4,7 +4,7 @@
 std::map<std::string, std::string> PostHandler::_types;
 
 
-PostHandler::PostHandler(const ServerConfig& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
+PostHandler::PostHandler(const ServerConfig& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _bodyProcessor(NULL), _isFinish(false) {
 
 };
 
@@ -18,12 +18,17 @@ PostHandler::PostHandler(const PostHandler& other): _config(other._config), _req
 PostHandler::~PostHandler() {
     if (_response != NULL)
         delete _response;
+    if (_bodyProcessor != NULL)
+        delete _bodyProcessor;
 };
 void PostHandler::handleData(const std::string& chunk) {
 
-    _body.append(chunk);
-    if (((int)_body.size()) >= _request.getContentLength()) {
-        process(_request, _location);
+    if (_bodyProcessor == NULL) {
+        _bodyProcessor = new RawProcessor(_config, _location, _request);
+    }
+    _bodyProcessor->handleChunk(chunk);
+    if (_bodyProcessor->isFinished()) {
+        _response = _bodyProcessor->getResult();
         _isFinish = true;
     }
 };
@@ -37,7 +42,6 @@ HttpResponse& PostHandler::getResponse() {
     HttpResponse& response = *_response;
     return response;
 
-    // process(_request, _location);
 };
 
 IMethodHandler* PostHandler::clone() const {

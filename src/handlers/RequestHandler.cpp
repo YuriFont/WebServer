@@ -1,11 +1,4 @@
 #include "../../include/handlers/RequestHandler.hpp"
-#include "../../include/handlers/GetHandler.hpp"
-#include "../../include/handlers/PostHandler.hpp"
-#include "../../include/handlers/DeleteHandler.hpp"
-#include "../../include/http/HttpResponse.hpp"
-#include "../../include/handlers/CgiHandler.hpp"
-#include "../../include/handlers/RedirectHandler.hpp"
-#include "../../include/handlers/NotImplementedHandler.hpp"
 
 RequestHandler::RequestHandler(const ServerConfig &config) : _config(config) {}
 

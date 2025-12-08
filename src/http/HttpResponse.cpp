@@ -10,7 +10,7 @@ HttpResponse::HttpResponse(const HttpResponse& other) {
     *this = other;
 };
 
-HttpResponse HttpResponse::operator=(const HttpResponse& other) {
+HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 
     if (this != &other) {
 

@@ -4,6 +4,13 @@
 #include "../core/ServerConfig.hpp"
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
+#include "../handlers/GetHandler.hpp"
+#include "../handlers/PostHandler.hpp"
+#include "../handlers/DeleteHandler.hpp"
+#include "../http/HttpResponse.hpp"
+#include "../handlers/CgiHandler.hpp"
+#include "../handlers/RedirectHandler.hpp"
+#include "../handlers/NotImplementedHandler.hpp"
 #include "CgiHandler.hpp"
 #include "../interfaces/IMethodHandler.hpp"
 

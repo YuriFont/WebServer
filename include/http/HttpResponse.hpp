@@ -22,7 +22,7 @@ class HttpResponse {
 
         HttpResponse();
         HttpResponse(const HttpResponse& other);
-        HttpResponse operator=(const HttpResponse& other);
+        HttpResponse& operator=(const HttpResponse& other);
         ~HttpResponse();
         void setStatus(const int& statusCode);
         void setHttpVersion(const std::string& httpVersion);

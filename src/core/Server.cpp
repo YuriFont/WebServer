@@ -151,16 +151,12 @@ void Server::handleClientRequest(int client_fd) {
     addBuffer(client, buffer, bytes);
     if (!client.isAllHeaders())
         return ;
-    if (client.handler == NULL) {
+    if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
-    }
     client.handler->handleData(client.getRequest().getBody());
     client.eraseBody();
     if (client.handler->isFinished()) {
         sendResponse(client_fd, client);
-    }
-    else{
-        clients[client_fd].cleanData();
     }
 }
 

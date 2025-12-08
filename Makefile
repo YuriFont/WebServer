@@ -15,6 +15,10 @@ HANDLERS =	DeleteHandler.cpp \
 			RedirectHandler.cpp \
 			NotImplementedHandler.cpp
 
+BODYPROCESSOR = RawProcessor.cpp
+
+ABSTRACTS = ABodyProcessor.cpp
+
 HTTP =		HttpRequest.cpp \
 			HttpResponse.cpp \
 			HttpStatus.cpp
@@ -25,13 +29,17 @@ FOLDERS = 	config/ \
 			core/ \
 			handlers/ \
 			http/ \
-			utils/
+			utils/ \
+			bodyProcessor/ \
+			abstracts/
 
 FILES = $(addprefix config/, $(CONFIG)) \
 		$(addprefix core/, $(CORE)) \
 		$(addprefix handlers/, $(HANDLERS)) \
 		$(addprefix http/, $(HTTP)) \
-		$(addprefix utils/, $(UTILS))
+		$(addprefix utils/, $(UTILS)) \
+		$(addprefix bodyProcessor/, $(BODYPROCESSOR)) \
+		$(addprefix abstracts/, $(ABSTRACTS))
 		
 SRC = $(addprefix src/, $(FILES))
 OBJ = $(addprefix obj/, ${FILES:%.cpp=%.o})

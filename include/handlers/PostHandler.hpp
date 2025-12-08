@@ -6,6 +6,8 @@
 #include "../config/Location.hpp"
 #include "../core/ServerConfig.hpp"
 #include "../interfaces/IMethodHandler.hpp"
+#include "../abstracts/ABodyProcessor.hpp"
+#include "../bodyProcessor/RawProcessor.hpp"
 #include <map>
 
 class PostHandler : public IMethodHandler {
@@ -16,6 +18,7 @@ class PostHandler : public IMethodHandler {
         const HttpRequest& _request;
         const Location& _location;
         HttpResponse* _response;
+        ABodyProcessor* _bodyProcessor;
         std::string _body;
         bool _isFinish;
 
