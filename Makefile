@@ -16,7 +16,8 @@ HANDLERS =	DeleteHandler.cpp \
 			NotImplementedHandler.cpp
 
 BODYPROCESSOR = RawProcessor.cpp \
-				MultipartProcessor.cpp
+				MultipartProcessor.cpp \
+				UrlEncodedProcessor.cpp
 
 ABSTRACTS = ABodyProcessor.cpp
 
@@ -44,7 +45,7 @@ FILES = $(addprefix config/, $(CONFIG)) \
 		
 SRC = $(addprefix src/, $(FILES))
 OBJ = $(addprefix obj/, ${FILES:%.cpp=%.o})
-CXX = c++
+CXX = c++ -g
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
 all: $(NAME)

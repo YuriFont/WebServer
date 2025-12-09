@@ -213,8 +213,15 @@ HttpResponse& CgiHandler::process(const HttpRequest &request, const Location &lo
     close(outPipe[1]);
 
     //Envia o corpo do POST (se houver)
-    if (request.getMethod() == "POST" && !_body.empty())
-        write(inPipe[1], _body.c_str(), _body.size());
+    if (request.getMethod() == "POST" && !_body.empty()) {
+        int bytes = write(inPipe[1], _body.c_str(), _body.size());
+        if (bytes <= -1) {
+
+            // exceção ou retorna erro ?
+            std::cout << "Erro on wirite in pipe" << std::endl;
+        }
+
+    }
     close(inPipe[1]);
 
     //Lê saída do CGI

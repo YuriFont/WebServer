@@ -9,6 +9,7 @@
 #include "../abstracts/ABodyProcessor.hpp"
 #include "../bodyProcessor/RawProcessor.hpp"
 #include "../bodyProcessor/MultipartProcessor.hpp"
+#include "../bodyProcessor/UrlEncodedProcessor.hpp"
 #include <map>
 
 class PostHandler : public IMethodHandler {

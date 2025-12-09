@@ -25,7 +25,6 @@ bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Locati
 
 IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &request, const Location &location)
 {
-
     if (!location.getRedirect().empty()) {
         return new RedirectHandler(config, request, location);
     }

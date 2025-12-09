@@ -24,7 +24,9 @@ PostHandler::~PostHandler() {
 void PostHandler::handleData(const std::string& chunk) {
 
     if (_bodyProcessor == NULL) {
-        if (_request.getHeader("Content-Type").find("multipart/form-data") != std::string::npos)
+        if (_request.getHeader("Content-Type") == "application/x-www-form-urlencoded")
+            _bodyProcessor = new UrlEncodedProcessor(_config, _location, _request);
+        else if (_request.getHeader("Content-Type").find("multipart/form-data") != std::string::npos)
             _bodyProcessor = new MultipartProcessor(_config, _location, _request);
         else
             _bodyProcessor = new RawProcessor(_config, _location, _request);
