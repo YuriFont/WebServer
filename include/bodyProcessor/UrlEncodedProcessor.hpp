@@ -1,3 +1,6 @@
+#ifndef URLENCODEDPROCESSOR_HPP
+#define URLENCODEDPROCESSOR_HPP
+
 #include "../abstracts/ABodyProcessor.hpp"
 #include "../config/Location.hpp"
 #include "../http/HttpRequest.hpp"
@@ -31,3 +34,5 @@ class UrlEncodedProcessor : public ABodyProcessor {
         void handleFormUrlencoded(const std::string& body);
 
 };
+
+#endif
