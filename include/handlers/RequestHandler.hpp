@@ -11,6 +11,7 @@
 #include "../handlers/CgiHandler.hpp"
 #include "../handlers/RedirectHandler.hpp"
 #include "../handlers/NotImplementedHandler.hpp"
+#include "../handlers/MethodNotAllowedHandler.hpp"
 #include "CgiHandler.hpp"
 #include "../interfaces/IMethodHandler.hpp"
 

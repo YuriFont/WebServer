@@ -46,6 +46,22 @@ HttpResponse& GetHandler::getResponse() {
 };
 
 void GetHandler::isDir(const std::string& path, const HttpRequest &request, const Location &location, struct stat info, HttpResponse& response){
+
+    const std::vector<std::string>& indexs = location.getIndex();
+    
+    
+    for (size_t i = 0; i < indexs.size(); i++) {
+        std::string indexPath = path + indexs[i];
+        // std::cout << "entrou no diretorio: " <<  indexPath << std::endl;
+        if (stat(indexPath.c_str(), &info) == 0){
+            std::string body;
+            Utils::readFile(indexPath, body);
+            response.setStatus(200);
+            response.setContentType(Utils::getContentType(indexPath));
+            response.setBody(body);
+            return ;
+        }
+    }
     std::string indexPath = path +"/index.html";
     //Se houver index.html -> 200 OK
     if (stat(indexPath.c_str(), &info) == 0){

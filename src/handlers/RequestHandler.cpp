@@ -25,13 +25,18 @@ bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Locati
 
 IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &request, const Location &location)
 {
+
+    std::string method = request.getMethod();
+
+    if (!location.isMethodAllowed(method)) {
+        return new MethodNotAllowedHandler(location.getMethods());
+    }
     if (!location.getRedirect().empty()) {
         return new RedirectHandler(config, request, location);
     }
     if (location.isCgiEnabled() && isCgiEnabledForExtension(request, location))
         return new CgiHandler(config, request, location);
 
-    std::string method = request.getMethod();
     if (method == "GET")
         return new GetHandler(config, request, location);
 

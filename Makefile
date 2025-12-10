@@ -13,7 +13,8 @@ HANDLERS =	DeleteHandler.cpp \
 			RequestHandler.cpp\
 			CgiHandler.cpp \
 			RedirectHandler.cpp \
-			NotImplementedHandler.cpp
+			NotImplementedHandler.cpp \
+			MethodNotAllowedHandler.cpp
 
 BODYPROCESSOR = RawProcessor.cpp \
 				MultipartProcessor.cpp \
