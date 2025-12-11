@@ -98,6 +98,10 @@ void HttpResponse::setHeader(const std::string &key, const std::string &value){
     _headers[key] = value;
 }
 
+const std::string HttpResponse::getStatusResponse() {
+    return status.makeResponseStatus();
+};
+
 std::string HttpResponse::toString() {
 
     std::string response = this->httpVersion;

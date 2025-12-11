@@ -54,7 +54,8 @@ void Server::handleNewConnection(int server_fd) {
     clients[client_fd] = client;
     
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &clients[client_fd].getDataEvent());
-    std::cout << "New client in the server " << server_by_fd[server_fd].getPort() << std::endl;
+    std::cout << GREEN << "New client in the server " << server_by_fd[server_fd].getPort() << RESET << std::endl;
+    logClienteConected(client_fd);
 }
 
 const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &request) {
@@ -90,7 +91,8 @@ void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize
 
     if (bytes <= 0) {
         removeClient(client_fd);
-        std::cout << "Client disconnected." << std::endl;
+        logClientDesconected(client_fd);
+        // std::cout << "Client disconnected." << std::endl;
     }
 }
 
@@ -121,10 +123,32 @@ void Server::finalizeClientConnection(const int &client_fd, Client& client, cons
     }
 }
 
+void Server::logClienteRequest(const int &client_fd, Client& client) {
+
+    std::cout << "[FD " << client_fd << "] <--- Request: " 
+            << client.getRequest().getMethod() << " " 
+            << client.getRequest().getPath() << " "
+            << client.getRequest().getHttpVersion()
+            << std::endl;
+}
+
+void Server::logClienteConected(const int &client_fd) {
+    std::cout << "[FD " << client_fd << "] (+) Connection established" << std::endl;
+}
+
+void Server::logClientDesconected(const int &client_fd) {
+    std::cout << RED << "[FD " << client_fd << "] (-) Connection closed" << RESET << std::endl;
+}
+
+void Server::logStatusResponse(const int &client_fd, Client& client, HttpResponse& resp) {
+    std::cout << "[FD " << client_fd << "]" << " ---> " << client.getRequest().getMethod() << " " << client.getRequest().getPath() << " (" << resp.getStatusResponse() <<  ") - "<< resp.getContentLength() << " bytes" << std::endl;
+}
+
 void Server::sendResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
     send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
+    logStatusResponse(client_fd, client, resp);
     bool closeConnection = removeMethodHandler(client, resp);
     finalizeClientConnection(client_fd, client, closeConnection);
 }
@@ -133,6 +157,9 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
 
     if (!client.isAllHeaders()) {
         client.addBuffer(std::string(buffer, bytes));
+        if (client.isAllHeaders()) {
+            logClienteRequest(client.getClienteFd(), client);
+        }
     } else {
         client.addBody(std::string(buffer, bytes));
     }

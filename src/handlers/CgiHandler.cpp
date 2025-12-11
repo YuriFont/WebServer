@@ -15,8 +15,10 @@ CgiHandler::CgiHandler(const CgiHandler& other): _config(other._config), _reques
 
 CgiHandler::~CgiHandler() {
 
-    if (_response != NULL)
+    if (_response != NULL) {
         delete _response;
+        _response = NULL;
+    }
 };
 
 IMethodHandler* CgiHandler::clone() const {

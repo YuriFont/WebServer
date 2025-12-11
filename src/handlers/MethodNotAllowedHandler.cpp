@@ -10,12 +10,15 @@ MethodNotAllowedHandler::MethodNotAllowedHandler(const std::vector<std::string>&
 
 };
 
-MethodNotAllowedHandler::MethodNotAllowedHandler(const MethodNotAllowedHandler& other): _methodsAllowed(other._methodsAllowed) {
+MethodNotAllowedHandler::MethodNotAllowedHandler(const MethodNotAllowedHandler& other): _methodsAllowed(other._methodsAllowed), _response(NULL) {
 
 };
 
 MethodNotAllowedHandler::~MethodNotAllowedHandler() {
-
+    if (_response != NULL) {
+        delete _response;
+        _response = NULL;
+    }
 };
 
 void MethodNotAllowedHandler::handleData(const std::string& chunk) {
@@ -27,11 +30,11 @@ bool MethodNotAllowedHandler::isFinished() {
 };
 
 HttpResponse& MethodNotAllowedHandler::getResponse() {
-    HttpResponse *response = new HttpResponse();
+    _response = new HttpResponse();
 
-    response->setStatus(405);
-    response->setHeader("Allow", _methodsAllowed);
-    return *response; 
+    _response->setStatus(405);
+    _response->setHeader("Allow", _methodsAllowed);
+    return *_response;
 };
  
 IMethodHandler* MethodNotAllowedHandler::clone() const {

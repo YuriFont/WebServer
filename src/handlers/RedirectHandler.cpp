@@ -15,8 +15,10 @@ RedirectHandler::RedirectHandler(const RedirectHandler& other): _config(other._c
 
 RedirectHandler::~RedirectHandler() {
 
-    if (_response != NULL)
+    if (_response != NULL) {
         delete _response;
+        _response = NULL;
+    }
 };
 
 void RedirectHandler::handleData(const std::string& chunk) {

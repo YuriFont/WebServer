@@ -39,6 +39,10 @@ class Server {
         void sendResponse(const int &client_fd, Client& client);
         bool removeMethodHandler(Client& client, HttpResponse& resp);
         void finalizeClientConnection(const int &client_fd, Client& client, const bool& closeConnection);
+        void logStatusResponse(const int &client_fd, Client& client, HttpResponse& resp);
+        void logClientDesconected(const int &client_fd);
+        void logClienteConected(const int &client_fd);
+        void logClienteRequest(const int &client_fd, Client& client);
 };
 
 #endif

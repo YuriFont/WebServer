@@ -31,6 +31,7 @@ class UrlEncodedProcessor : public ABodyProcessor {
         virtual void handleChunk(const std::string& chunk);
         virtual bool isFinished();
         virtual HttpResponse* getResult();
+        virtual bool isMaxBodySize();
         void handleFormUrlencoded(const std::string& body);
 
 };

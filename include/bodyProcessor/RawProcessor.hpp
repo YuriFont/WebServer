@@ -32,6 +32,7 @@ class RawProcessor : public ABodyProcessor {
         virtual void handleChunk(const std::string& chunk);
         virtual bool isFinished();
         virtual HttpResponse* getResult();
+        virtual bool isMaxBodySize();
         std::string getExtension(const std::string& contentType);
         void handleRawPost(const std::string& chunk);
         void saveFile(const std::string& contentType, const std::string& uploadStore, const std::string& body);

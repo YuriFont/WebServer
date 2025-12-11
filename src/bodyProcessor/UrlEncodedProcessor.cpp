@@ -7,6 +7,14 @@ UrlEncodedProcessor::UrlEncodedProcessor(const ServerConfig& config, const Locat
     _contentLength = request.getContentLength();
 };
 
+bool UrlEncodedProcessor::isMaxBodySize() {
+    if (_contentLength > _config.client_max_body_size)
+        return true;
+    else if (_contentLength > _bytesReceived)
+        return true;
+    return false;
+};
+
 UrlEncodedProcessor::~UrlEncodedProcessor() {
     if (_response != NULL)
         delete _response;
@@ -14,6 +22,12 @@ UrlEncodedProcessor::~UrlEncodedProcessor() {
 
 void UrlEncodedProcessor::handleChunk(const std::string& chunk) {
 
+    if (isMaxBodySize()) {
+        _response = new HttpResponse();
+        _isFinished = true;
+        _response->setStatus(413);
+        return;
+    }
     _body.append(chunk);
     if (_body.size() >= _contentLength) {
         _response = new HttpResponse();

@@ -9,6 +9,14 @@ MultipartProcessor::MultipartProcessor(const ServerConfig& config, const Locatio
     _contentLength = request.getContentLength();
 };
 
+bool MultipartProcessor::isMaxBodySize() {
+    if (_contentLength > _config.client_max_body_size)
+        return true;
+    else if (_contentLength > _bytesReceived)
+        return true;
+    return false;
+};
+
 MultipartProcessor::~MultipartProcessor() {
 
     if (_response != NULL)
@@ -17,6 +25,13 @@ MultipartProcessor::~MultipartProcessor() {
 
 void MultipartProcessor::handleChunk(const std::string& chunk) {
 
+    if (isMaxBodySize()) {
+        _response = new HttpResponse();
+        _isFinished = true;
+        _response->setStatus(413);
+        _response->setConnectionClose(true);
+        return;
+    }
     handleMultipart(chunk);
     if (_bytesReceived >= _contentLength) {
         _response = new HttpResponse();

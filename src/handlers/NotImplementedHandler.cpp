@@ -11,8 +11,10 @@ NotImplementedHandler::NotImplementedHandler(const NotImplementedHandler& other)
 };
 
 NotImplementedHandler::~NotImplementedHandler() {
-    if (_response != NULL)
+    if (_response != NULL) {
         delete _response;
+        _response = NULL;
+    }
 };
 void NotImplementedHandler::handleData(const std::string& chunk) {
     

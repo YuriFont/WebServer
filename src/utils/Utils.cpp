@@ -80,7 +80,7 @@ std::string Utils::getContentType(const std::string& path) {
     if (path.find(".ico") != std::string::npos) return "image/vnd.microsoft.icon";
     if (path.find(".zip") != std::string::npos) return "application/zip";
     if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) return "image/jpeg";
-    return "text/html"; // default
+    return "text/plain"; // default
 }
 
 // Read a file from disk and return its contents as a string

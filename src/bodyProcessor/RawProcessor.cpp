@@ -9,6 +9,14 @@ RawProcessor::RawProcessor(const ServerConfig& config, const Location& location,
     _contentLength = request.getContentLength();
 };
 
+bool RawProcessor::isMaxBodySize() {
+    if (_contentLength > _config.client_max_body_size)
+        return true;
+    else if (_contentLength > _bytesReceived)
+        return true;
+    return false;
+};
+
 RawProcessor::~RawProcessor() {
 
     if (_response != NULL) {
@@ -49,6 +57,12 @@ void RawProcessor::finishFileUpload() {
 
 void RawProcessor::handleChunk(const std::string& chunk) {
 
+    if (isMaxBodySize()) {
+        _response = new HttpResponse();
+        _isFinished = true;
+        _response->setStatus(413);
+        return;
+    }
     if (_fileName.empty()) {
         createFile();
     }

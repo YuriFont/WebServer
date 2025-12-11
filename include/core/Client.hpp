@@ -27,6 +27,7 @@ class Client {
         Client& operator=(const Client& other);
         ~Client();
         epoll_event& getDataEvent();
+        const int& getClienteFd();
         void addBuffer(const std::string& request);
         void addBody(const std::string& body);
         HttpRequest& getRequest();

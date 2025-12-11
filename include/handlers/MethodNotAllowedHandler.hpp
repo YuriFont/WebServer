@@ -12,6 +12,7 @@ class MethodNotAllowedHandler : public IMethodHandler {
 
     private:
         std::string _methodsAllowed;
+        HttpResponse *_response;
         MethodNotAllowedHandler();
     public:
         ~MethodNotAllowedHandler();

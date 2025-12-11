@@ -16,10 +16,14 @@ PostHandler::PostHandler(const PostHandler& other): _config(other._config), _req
 };
 
 PostHandler::~PostHandler() {
-    if (_response != NULL)
+    if (_response != NULL) {
         delete _response;
-    if (_bodyProcessor != NULL)
+        _response = NULL;
+    }
+    if (_bodyProcessor != NULL) {
         delete _bodyProcessor;
+        _bodyProcessor = NULL;
+    }
 };
 void PostHandler::handleData(const std::string& chunk) {
 

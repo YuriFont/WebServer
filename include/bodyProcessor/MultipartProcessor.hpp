@@ -48,6 +48,7 @@ class MultipartProcessor : public ABodyProcessor {
         virtual void handleChunk(const std::string& chunk);
         virtual bool isFinished();
         virtual HttpResponse* getResult();
+        virtual bool isMaxBodySize();
         void handleMultipart(const std::string& chunk);
         // void saveFile(const std::string& contentType, const std::string& uploadStore, const std::string& body);
         bool append(std::string data, size_t len);

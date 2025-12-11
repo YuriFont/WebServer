@@ -60,6 +60,10 @@ epoll_event& Client::getDataEvent() {
     return this->event;
 };
 
+const int& Client::getClienteFd() {
+    return this->client_fd;
+};
+
 void Client::addBuffer(const std::string& request) {
 
     this->request.appendBuffer(request);
@@ -69,7 +73,8 @@ void Client::addBuffer(const std::string& request) {
             this->isHeadersReceived = true;
             this->request.parser();
             this->contentLength = this->request.getContentLength();
-            std::cout << this->request.getMethod() << " " << this->request.getPath() << " " << this->request.getHttpVersion() << std::endl;
+            // std::cout << this->request.getBuffer() << std::endl;
+            // std::cout << this->request.getMethod() << " " << this->request.getPath() << " " << this->request.getHttpVersion() << std::endl;
             this->isHeadersParsed = true;
         }
     }

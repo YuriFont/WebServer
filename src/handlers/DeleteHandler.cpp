@@ -13,8 +13,10 @@ DeleteHandler::DeleteHandler(const DeleteHandler &other): _config(other._config)
 
 DeleteHandler::~DeleteHandler() {
 
-    if (_response != NULL)
+    if (_response != NULL) {
         delete _response;
+        _response = NULL;
+    }
 };
 void DeleteHandler::handleData(const std::string& chunk) {
     (void)chunk;

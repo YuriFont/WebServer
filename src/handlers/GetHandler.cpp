@@ -20,8 +20,10 @@ GetHandler::GetHandler(const GetHandler& other): _config(other._config), _reques
 
 GetHandler::~GetHandler() {
 
-    if (_response != NULL)
+    if (_response != NULL) {
         delete _response;
+        _response = NULL;
+    }
 };
 
 GetHandler::GetHandler(const ServerConfig& config, const HttpRequest& request, const Location& location) : _config(config), _request(request), _location(location), _response(NULL) {
@@ -51,9 +53,10 @@ void GetHandler::isDir(const std::string& path, const HttpRequest &request, cons
     
     
     for (size_t i = 0; i < indexs.size(); i++) {
-        std::string indexPath = path + indexs[i];
+        std::string indexPath = path[path.length() - 1] == '/' ? path + indexs[i] : path + "/" + indexs[i];
         // std::cout << "entrou no diretorio: " <<  indexPath << std::endl;
         if (stat(indexPath.c_str(), &info) == 0){
+            // std::cout << "Achei o arquivo: " <<  indexPath << std::endl;
             std::string body;
             Utils::readFile(indexPath, body);
             response.setStatus(200);
@@ -81,7 +84,7 @@ void GetHandler::isDir(const std::string& path, const HttpRequest &request, cons
         return ;
     }
     //Arquivo forbidden
-    response.setStatus(403);
+    response.setStatus(404);
     response.setContentType("text/html");
 }
 
