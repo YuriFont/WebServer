@@ -28,14 +28,15 @@ IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &
 
     std::string method = request.getMethod();
 
+    if (location.isCgiEnabled() && isCgiEnabledForExtension(request, location))
+        return new CgiHandler(config, request, location);
+        
     if (!location.isMethodAllowed(method)) {
         return new MethodNotAllowedHandler(location.getMethods());
     }
     if (!location.getRedirect().empty()) {
         return new RedirectHandler(config, request, location);
     }
-    if (location.isCgiEnabled() && isCgiEnabledForExtension(request, location))
-        return new CgiHandler(config, request, location);
 
     if (method == "GET")
         return new GetHandler(config, request, location);

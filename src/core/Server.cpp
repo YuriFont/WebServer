@@ -10,10 +10,12 @@ Server::Server(const Config &config) : _config(config), _running(true) {}
 
 Server::~Server() {
     for (size_t i = 0; i < server_fds.size(); i++) {
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, server_fds[i], NULL);
         close(server_fds[i]);
     }
 
     for (std::map<int, Client>::iterator it = clients.begin(); it != clients.end(); ++it) {
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, it->first, NULL);
         close(it->first);
     }
 
@@ -189,7 +191,7 @@ void Server::handleClientRequest(int client_fd) {
 
 void Server::eventLoop() {
     while (_running) {
-        int n = epoll_wait(epoll_fd, events, 64, -1);
+        int n = epoll_wait(epoll_fd, events, 64, 1000);
 
         for (int i = 0; i < n; i++) {
             int fd = events[i].data.fd;

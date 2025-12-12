@@ -38,7 +38,7 @@ sleep 2
 
 # 2️⃣ POST acima do limite de tamanho (caso tenha implementado client_max_body_size)
 TMPFILE=$(mktemp)
-head -c 5000000 /dev/zero | tr '\0' 'A' > "$TMPFILE"
+head -c 10000001 /dev/zero | tr '\0' 'A' > "$TMPFILE"
 
 SIZE=$(stat -c%s "$TMPFILE")
 human=$(numfmt --to=iec --suffix=B --padding=7 "$SIZE")
@@ -49,9 +49,8 @@ STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
 
 rm -f "$TMPFILE"
 
-if [ "$STATUS" = "201" ]; then
-  echo "❌ POST Esté teste aprensenta erro o body está vindo vazio e status diferente de (413)"
-  echo "✅ POST body muito grande (413)"
+if [ "$STATUS" = "413" ]; then
+  echo "✅ POST body muito grande ($STATUS)"
 else
   echo "⚠️ POST body grande retornou $STATUS"
   exit_program 1

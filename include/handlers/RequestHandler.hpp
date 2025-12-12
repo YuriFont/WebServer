@@ -19,7 +19,9 @@ class RequestHandler {
 public:
     RequestHandler(const ServerConfig &config);
     static IMethodHandler* handle(const ServerConfig &server, HttpRequest &request, const Location &location);
-    
+    const ServerConfig& getConfig() {
+        return this->_config;
+    }
 private:
 
     static bool isCgiEnabledForExtension(HttpRequest &request, const Location &location);

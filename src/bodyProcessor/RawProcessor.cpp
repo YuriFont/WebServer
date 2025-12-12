@@ -12,7 +12,7 @@ RawProcessor::RawProcessor(const ServerConfig& config, const Location& location,
 bool RawProcessor::isMaxBodySize() {
     if (_contentLength > _config.client_max_body_size)
         return true;
-    else if (_contentLength > _bytesReceived)
+    else if (_bytesReceived > _config.client_max_body_size)
         return true;
     return false;
 };

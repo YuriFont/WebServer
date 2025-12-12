@@ -19,7 +19,7 @@ class Server {
     private:
         const Config &_config;
         int epoll_fd;
-        epoll_event events[10];
+        epoll_event events[64];
         std::vector<int> server_fds;
         std::map<int, ServerConfig> server_by_fd;
         std::map<int, ServerConfig*> client_server;
