@@ -1,0 +1,13 @@
+[32m[Config]: Config file opened successfully.[0m
+[32m[Config]: Config file parsed successfully.[0m
+Server listening on 127.0.0.1:8080
+[32mNew client in the server 8080[0m
+[FD 5] (+) Connection established
+[FD 5] <--- Request: POST /upload HTTP/1.1
+[FD 5] ---> POST /upload (201 Created) - 63 bytes
+[31m[FD 5] (-) Connection closed[0m
+[32mNew client in the server 8080[0m
+[FD 5] (+) Connection established
+[FD 5] <--- Request: POST /upload HTTP/1.1
+[FD 5] ---> POST /upload (413 Request Entity Too Large) - 0 bytes
+[31m[FD 5] (-) Connection closed[0m

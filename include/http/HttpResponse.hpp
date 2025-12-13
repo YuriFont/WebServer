@@ -21,6 +21,9 @@ class HttpResponse {
     public:
 
         HttpResponse();
+        HttpResponse(const HttpResponse& other);
+        HttpResponse& operator=(const HttpResponse& other);
+        ~HttpResponse();
         void setStatus(const int& statusCode);
         void setHttpVersion(const std::string& httpVersion);
         void setContentType(const std::string& contentType);
@@ -29,6 +32,7 @@ class HttpResponse {
         void setConnectionClose(bool connectionClose);
         bool isConnectionClose();
         int getContentLength();
+        const std::string getStatusResponse();
         static HttpResponse methodNotAllowed(const std::vector<std::string>& methods);
         void setAllowedMethods(const std::vector<std::string>& methods);
         void setHeader(const std::string &key, const std::string &value);

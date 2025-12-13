@@ -78,8 +78,9 @@ std::string Utils::getContentType(const std::string& path) {
     if (path.find(".js") != std::string::npos) return "application/javascript";
     if (path.find(".png") != std::string::npos) return "image/png";
     if (path.find(".ico") != std::string::npos) return "image/vnd.microsoft.icon";
+    if (path.find(".zip") != std::string::npos) return "application/zip";
     if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) return "image/jpeg";
-    return "text/html"; // default
+    return "text/plain"; // default
 }
 
 // Read a file from disk and return its contents as a string
@@ -162,4 +163,21 @@ char **Utils::vecToCharArray(const std::vector<std::string> &vec)
         arr[i] = strdup(vec[i].c_str());
     arr[vec.size()] = NULL;
     return arr;
+}
+
+std::string Utils::extractValue(const std::string& line, const std::string& key) {
+
+    size_t pos = line.find(key);
+    if (pos == std::string::npos) {
+        return "";
+    }
+    
+    pos += key.length(); 
+    size_t endPos = line.find("\"", pos);
+
+    if (endPos == std::string::npos) {
+        return "";
+    }
+
+    return line.substr(pos, endPos - pos);
 }

@@ -34,4 +34,6 @@ class HttpRequest {
         void appendBody(const std::string& body);
         void clearAllData();
         void parser();
+        void reserveSpaceBody(size_t size);
+        void eraseBody();
 };

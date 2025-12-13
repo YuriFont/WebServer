@@ -1,5 +1,67 @@
 #include "../../include/handlers/CgiHandler.hpp"
 
+
+CgiHandler::CgiHandler(const ServerConfig& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
+
+};
+
+CgiHandler::CgiHandler(const CgiHandler& other): _config(other._config), _request(other._request), _location(other._location), _response(NULL), _isFinish(other._isFinish) {
+
+    if (other._response != NULL) {
+        this->_response = new HttpResponse(*other._response);
+    }
+};
+
+
+CgiHandler::~CgiHandler() {
+
+    if (_response != NULL) {
+        delete _response;
+        _response = NULL;
+    }
+};
+
+IMethodHandler* CgiHandler::clone() const {
+    return new CgiHandler(*this);
+};
+
+void CgiHandler::handleData(const std::string& chunk) {
+
+    _body.append(chunk);
+    if ((int)_body.size() == _request.getContentLength()) {
+        std::string extension = getExtensionCgi();
+        HttpResponse& response = process(_request, _location, extension);
+        _response = &response;
+        _isFinish = true;
+    }
+};
+
+bool CgiHandler::isFinished() {
+    return (_isFinish);
+};
+
+std::string CgiHandler::getExtensionCgi() {
+    
+    std::string rawPath = _request.getPath();
+    // Remover query string
+    size_t q = rawPath.find('?');
+    std::string path = (q != std::string::npos) ? rawPath.substr(0, q) : rawPath;
+    size_t dot = path.find_last_of('.');
+    std::string extension = path.substr(dot);
+
+    return extension;
+}
+
+HttpResponse& CgiHandler::getResponse() {
+
+    if (_response != NULL)
+        return *_response;
+
+    std::string extension = getExtensionCgi();
+    HttpResponse& response = process(_request, _location, extension);
+    return response;
+};
+
 std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, const Location &location, const std::string &scriptPath){
     (void) location;
     std::vector<std::string> env;
@@ -7,7 +69,7 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     env.push_back("SCRIPT_FILENAME=" + scriptPath);
     std::cout << "query:" << request.getQueryString() << std::endl;
     env.push_back("QUERY_STRING=" + request.getQueryString());
-    env.push_back("CONTENT_LENGTH=" + Utils::toString(request.getBody().size()));
+    env.push_back("CONTENT_LENGTH=" + Utils::toString(_body.size()));
     env.push_back("CONTENT_TYPE=" + request.getHeader("Content-Type"));
     env.push_back("GATEWAY_INTERFACE=CGI/1.1");
     env.push_back("SERVER_PROTOCOL=" + request.getHttpVersion());
@@ -62,7 +124,7 @@ std::string CgiHandler::readCgiOutput(int outPipe[2], pid_t pid)
     return output;
 }
 
-HttpResponse CgiHandler::responseHTTP(const std::string &output, HttpResponse &response)
+HttpResponse& CgiHandler::responseHTTP(const std::string &output)
 {
     size_t headerEnd = output.find("\r\n\r\n");
     size_t sepLen = 4;
@@ -71,12 +133,13 @@ HttpResponse CgiHandler::responseHTTP(const std::string &output, HttpResponse &r
         headerEnd = output.find("\n\n");
         sepLen = 2;
     }
+    _response = new HttpResponse();
 
     if (headerEnd == std::string::npos) {
-        response.setStatus(500);
-        response.setContentType("text/html");
-        response.setBody("<h1>CGI Internal Error</h1>");
-        return response;
+        _response->setStatus(500);
+        _response->setContentType("text/html");
+        _response->setBody("<h1>CGI Internal Error</h1>");
+        return *_response;
     }
 
     std::string headers = output.substr(0, headerEnd);
@@ -111,29 +174,28 @@ HttpResponse CgiHandler::responseHTTP(const std::string &output, HttpResponse &r
         size_t start = posLoc + 9;
         size_t end = headers.find("\r\n", start);
         std::string loc = Utils::trim(headers.substr(start, end - start));
-        response.setHeader("Location", loc);
+        _response->setHeader("Location", loc);
         hasLocation = true;
     }
 
-    response.setStatus(status);
-    response.setContentType(contentType);
+    _response->setStatus(status);
+    _response->setContentType(contentType);
 
     // --- SPECIAL RULE FOR REDIRECTS ---
     if (status >= 300 && status < 400 && hasLocation) {
-        response.setBody("");               // body EMPTY
-        response.setHeader("Content-Length", "0");
-        response.setConnectionClose(true);
-        return response;
+        _response->setBody("");               // body EMPTY
+        _response->setHeader("Content-Length", "0");
+        _response->setConnectionClose(true);
+        return *_response;
     }
 
-    // Normal CGI response
-    response.setBody(body);
-    response.setConnectionClose(true);
-    return response;
+    // Normal CGI _response
+    _response->setBody(body);
+    _response->setConnectionClose(true);
+    return *_response;
 }
 
-HttpResponse CgiHandler::process(const HttpRequest &request, const Location &location, std::string extension){
-    HttpResponse response;
+HttpResponse& CgiHandler::process(const HttpRequest &request, const Location &location, std::string extension){
 
     std::string path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
     std::string interpreter = location.getCgiPathForExtension(extension);
@@ -153,14 +215,22 @@ HttpResponse CgiHandler::process(const HttpRequest &request, const Location &loc
     close(outPipe[1]);
 
     //Envia o corpo do POST (se houver)
-    if (request.getMethod() == "POST" && !request.getBody().empty())
-        write(inPipe[1], request.getBody().c_str(), request.getBody().size());
+    if (request.getMethod() == "POST" && !_body.empty()) {
+        int bytes = write(inPipe[1], _body.c_str(), _body.size());
+        if (bytes <= -1) {
+
+            // exceção ou retorna erro ?
+            std::cout << "Erro on wirite in pipe" << std::endl;
+        }
+
+    }
     close(inPipe[1]);
 
     //Lê saída do CGI
     std::string output = readCgiOutput(outPipe, pid);
 
     //Monta a resposta HTTP
-    response = responseHTTP(output, response);
+    HttpResponse& response = responseHTTP(output);
+
     return response;
 }

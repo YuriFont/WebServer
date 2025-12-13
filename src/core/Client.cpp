@@ -1,7 +1,7 @@
 #include "../../include/core/Client.hpp"
 #include "../../include/utils/Utils.hpp"
 
-Client::Client() {
+Client::Client(): handler(NULL)  {
     this->contentLength = 0;
     this->client_fd = -1;
     this->event.events = EPOLLIN;
@@ -9,9 +9,14 @@ Client::Client() {
     this->isHeadersParsed = false;
 };
 
-Client::~Client() {};
+Client::~Client() {
+    
+    if (this->handler != NULL) {
+        delete this->handler;
+    };
+};
 
-Client::Client(const int& client_fd) {
+Client::Client(const int& client_fd): handler(NULL) {
 
     this->client_fd = client_fd;
     this->event.data.fd = client_fd;
@@ -20,13 +25,18 @@ Client::Client(const int& client_fd) {
     this->isHeadersParsed = false;
 };
 
-Client::Client(const Client& client) {
+Client::Client(const Client& client): handler(NULL) {
 
     *this = client;
     
 };
 
 Client& Client::operator=(const Client& other) {
+
+    if (this->handler != NULL) {
+        delete this->handler;
+        this->handler = NULL;
+    }
 
     if (this != &other) {
         this->client_fd = other.client_fd;
@@ -35,12 +45,23 @@ Client& Client::operator=(const Client& other) {
         this->isHeadersParsed = other.isHeadersParsed;
         this->event = other.event;
         this->request = other.request;
+        if (other.handler != NULL) {
+            this->handler = other.handler->clone();
+        }
     }
     return *this;
 };
 
+void Client::eraseBody() {
+    this->request.eraseBody();
+};
+
 epoll_event& Client::getDataEvent() {
     return this->event;
+};
+
+const int& Client::getClienteFd() {
+    return this->client_fd;
 };
 
 void Client::addBuffer(const std::string& request) {
@@ -52,6 +73,8 @@ void Client::addBuffer(const std::string& request) {
             this->isHeadersReceived = true;
             this->request.parser();
             this->contentLength = this->request.getContentLength();
+            // std::cout << this->request.getBuffer() << std::endl;
+            // std::cout << this->request.getMethod() << " " << this->request.getPath() << " " << this->request.getHttpVersion() << std::endl;
             this->isHeadersParsed = true;
         }
     }

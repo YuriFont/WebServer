@@ -1,75 +1,57 @@
 #!/bin/bash
 
-# Configuração
 SERVER_BINARY=./bin/webserv
 CONF_FILE=./config/test.conf
 PORT=8080
-LOGFILE="tests/logs/redirect_test.log"
-mkdir -p tests/logs
+LOGFILE="tests/logs/get_test.log"
+mkdir -p logs
 
-# Mudar para o diretório raiz para que 'make' e './bin/webserv' funcionem
 cd ..
 
-# Compilação e Verificação
 make re >/dev/null || { echo "❌ Falha na compilação"; exit 1; }
 
-# Iniciar o servidor em segundo plano
-$SERVER_BINARY "$CONF_FILE" &
+$SERVER_BINARY $CONF_FILE > "$LOGFILE" &
 PID=$!
 sleep 1
 
-# Função para matar o servidor e sair
 exit_program() {
     CODE=$1
-    if [ ! -z "$PID" ] && ps -p $PID > /dev/null; then
-        kill $PID
-        wait $PID 2>/dev/null
-    fi
+    kill $PID
+    wait $PID 2>/dev/null
     exit $CODE
 }
 
-echo "🔄 Testes de Redirecionamento Simplificados (Apenas Externo)"
+echo "🧪 Testes do método GET"
 
-# --- Variáveis de Teste ---
-REDIRECT_EXTERNAL_SOURCE="/oldpage"
-REDIRECT_EXTERNAL_DESTINATION="https://google.com/"
-EXPECTED_STATUS_EXTERNAL="302"
+# 1️⃣ GET de arquivo existente
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/index.html)
+if [ "$STATUS" = "200" ]; then
+  echo "✅ GET index.html (200)"
+else
+  echo "❌ GET index.html falhou ($STATUS)"
+  exit_program 1
+fi
 
-# Função de Teste Centralizada (sem alterações)
-run_redirect_test() {
-    local SOURCE=$1
-    local EXPECTED_STATUS=$2
-    local EXPECTED_DESTINATION=$3
-    local TEST_NAME=$4
+sleep 1
 
-    echo ""
-    echo "--- $TEST_NAME ($EXPECTED_STATUS) ---"
+# 2️⃣ GET de arquivo inexistente
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/missing.html)
+if [ "$STATUS" = "404" ]; then
+  echo "✅ GET 404 (404)"
+else
+  echo "❌ GET 404 falhou ($STATUS)"
+  exit_program 1
+fi
 
-    INFO=$(curl -s -o /dev/null -w "STATUS:%{http_code}\nURL:%{redirect_url}" http://localhost:$PORT$SOURCE)
-    
-    STATUS=$(echo "$INFO" | grep "STATUS:" | cut -d ':' -f 2 | tr -d '\n' | xargs)
-    URL=$(echo "$INFO" | grep "URL:" | cut -d ':' -f 2- | tr -d '\n' | xargs)
+sleep 1
 
-    if [ "$STATUS" = "$EXPECTED_STATUS" ] && [ "$URL" = "$EXPECTED_DESTINATION" ]; then
-        echo "✅ Sucesso. Status: $STATUS."
-        echo "    -> Redirecionado para: $URL"
-    else
-        echo "❌ Falha. Status esperado: $EXPECTED_STATUS. Recebido: $STATUS"
-        echo "    -> URL Esperada: '$EXPECTED_DESTINATION'"
-        echo "    -> URL Recebida: '$URL'"
-        exit_program 1
-    fi
-}
+# 3️⃣ GET de diretório com index
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/)
+if [ "$STATUS" = "200" ]; then
+  echo "✅ GET diretório (200)"
+else
+  echo "❌ GET diretório falhou ($STATUS)"
+  exit_program 1
+fi
 
-# 1. Teste de Redirecionamento Externo (302)
-run_redirect_test \
-    "$REDIRECT_EXTERNAL_SOURCE" \
-    "$EXPECTED_STATUS_EXTERNAL" \
-    "$REDIRECT_EXTERNAL_DESTINATION" \
-    "1. Externo: $REDIRECT_EXTERNAL_SOURCE -> $REDIRECT_EXTERNAL_DESTINATION"
-
-
-# Limpeza e Sucesso
-echo ""
-echo "✨ Teste de redirecionamento externo concluído com sucesso!"
 exit_program 0

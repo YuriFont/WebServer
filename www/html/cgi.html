@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Demo CGI JSON DB</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{--bg:#f7fafc;--card:#ffffff;--muted:#6b7280;--accent:#2563eb;--radius:12px}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Arial;margin:0;padding:20px;background:var(--bg);color:#0b1220}
+    .wrap{max-width:980px;margin:0 auto}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+    .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,#ebf5ff,#fff);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent);border:1px solid rgba(37,99,235,0.12)}
+    h1{font-size:1.15rem;margin:0}
+    p.lead{margin:0;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:14px}
+    .card{background:var(--card);padding:14px;border-radius:var(--radius);box-shadow:0 6px 18px rgba(12,18,28,0.05);border:1px solid rgba(10,20,30,0.03)}
+    label.small{display:block;color:var(--muted);font-size:0.9rem;margin-bottom:8px}
+    textarea, input[type=text], input[type=number]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(10,20,30,0.06);font-family:ui-monospace,monospace}
+    .row{display:flex;gap:8px;align-items:center}
+    button{padding:10px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn-primary{background:linear-gradient(180deg,var(--accent),#60a5fa);color:#fff}
+    .btn-ghost{background:transparent;border:1px solid rgba(37,99,235,0.08);color:var(--accent)}
+    pre.output{background:#fbfdff;padding:10px;border-radius:8px;min-height:220px;overflow:auto;font-family:ui-monospace,monospace}
+    .help{color:var(--muted);font-size:0.95rem}
+    .small{font-size:0.9rem;color:var(--muted)}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">DB</div>
+      <div>
+        <h1>Demo CGI JSON DB</h1>
+        <p class="lead">Use os botões para criar, ver e apagar itens. Tudo salvo em um arquivo chamado <code>db.json</code>.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <main>
+        <section class="card">
+          <h3>1) Adicionar item (POST)</h3>
+          <p class="help">Cole aqui o objeto em JSON. Exemplo mínimo: <code>{"id":1,"name":"Maria", "value": 10}</code></p>
+          <label class="small">JSON do item</label>
+          <textarea id="post-body">{"id":1,"name":"Novo", "value": 10}</textarea>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+            <button id="btn-post" class="btn-primary">Enviar</button>
+            <button id="btn-clear" class="btn-ghost">Voltar ao exemplo</button>
+            <div style="margin-left:auto" id="post-msg" class="small">Pronto para enviar</div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:12px">
+          <h3>2) Buscar (GET)</h3>
+          <p class="help">Clique em "Listar tudo" para ver todo o arquivo. Para buscar por id, digite o número e clique em "Buscar".</p>
+          <div class="row" style="margin-bottom:8px">
+            <button id="btn-get-all" class="btn-ghost">Listar tudo</button>
+            <input id="get-id" type="text" placeholder="id (opcional)" />
+            <button id="btn-get-id" class="btn-primary">Buscar</button>
+            <div style="margin-left:auto" class="small">Resposta aparecerá no painel à direita</div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:12px">
+          <h3>3) Remover (DELETE)</h3>
+          <p class="help">Coloque o id do item que quer apagar e pressione "Deletar".</p>
+          <div class="row">
+            <input id="delete-id" type="number" placeholder="id para deletar" />
+            <button id="btn-delete" class="btn-primary">Deletar</button>
+            <div id="del-msg" style="margin-left:auto" class="small">—</div>
+          </div>
+        </section>
+      </main>
+
+      <aside>
+        <div class="card">
+          <h3>Resposta (bruta)</h3>
+          <pre id="get-result" class="output">[]</pre>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+            <div id="last-status" class="small">Status: —</div>
+            <div style="margin-left:auto" id="busy"> </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Como testar (rápido)</h3>
+          <p class="small">Se preferir linha de comando use:</p>
+          <pre class="output" style="min-height:90px">curl -i -X POST /cgi-bin/post.py -H "Content-Type: application/json" --data '{"id":2,"name":"Ana"}'
+curl -i /cgi-bin/get.py
+curl -i -X DELETE "/cgi-bin/delete.py?id=2"</pre>
+        </div>
+      </aside>
+    </div>
+
+    <p style="margin-top:12px;color:var(--muted)">Dica: o arquivo <code>db.json</code> fica na mesma pasta que os scripts Python. O servidor web precisa poder escrever nesse arquivo (permissões).</p>
+  </div>
+
+  <script>
+    const postUrl = '/cgi-bin/post.py';
+    const getUrl = '/cgi-bin/get.py';
+    const delUrl = '/cgi-bin/delete.py';
+
+    function setBusy(on){document.getElementById('busy').innerText = on? 'Carregando...' : ''}
+    function showMsg(el, txt){el.innerText = txt}
+    function showResult(status, text){document.getElementById('get-result').innerText = status + '\n' + text; document.getElementById('last-status').innerText = 'Status: '+status}
+
+    document.getElementById('btn-clear').addEventListener('click', ()=>{document.getElementById('post-body').value='{"id":1,"name":"Novo"}'; showMsg(document.getElementById('post-msg'),'Pronto para enviar')})
+
+    document.getElementById('btn-post').addEventListener('click', async ()=>{
+      let bodyText = document.getElementById('post-body').value.trim();
+      try { JSON.parse(bodyText) } catch(e){ showMsg(document.getElementById('post-msg'),'JSON inválido'); return }
+      setBusy(true); showMsg(document.getElementById('post-msg'),'Enviando...')
+      try {
+        const res = await fetch(postUrl, {method:'POST', headers:{'Content-Type':'application/json'}, body:bodyText});
+        const text = await res.text(); showResult(res.status+' '+res.statusText, text); showMsg(document.getElementById('post-msg'), res.status+' '+res.statusText)
+      } catch(err){ showMsg(document.getElementById('post-msg'),'Erro: '+err.message) }
+      setBusy(false);
+    })
+
+    document.getElementById('btn-get-all').addEventListener('click', async ()=>{
+      setBusy(true);
+      try{
+        const res = await fetch(getUrl); const text = await res.text(); showResult(res.status+' '+res.statusText, text)
+      }catch(e){ showResult('Erro',''+e.message) }
+      setBusy(false);
+    })
+
+    document.getElementById('btn-get-id').addEventListener('click', async ()=>{
+      const id = document.getElementById('get-id').value.trim(); if(!id){ showMsg(document.getElementById('post-msg'),'Informe um id'); return }
+      setBusy(true);
+      try{ const res = await fetch(getUrl+'?id='+encodeURIComponent(id)); const text = await res.text(); showResult(res.status+' '+res.statusText, text) }catch(e){ showResult('Erro',''+e.message) }
+      setBusy(false);
+    })
+
+    document.getElementById('btn-delete').addEventListener('click', async ()=>{
+      const id = document.getElementById('delete-id').value.trim(); if(!id){ showMsg(document.getElementById('del-msg'),'Informe id'); return }
+      setBusy(true); showMsg(document.getElementById('del-msg'),'Removendo...')
+      try{
+        const res = await fetch(delUrl+'?id='+encodeURIComponent(id), {method:'DELETE'});
+        if(res.status===405){ // servidor pode não aceitar DELETE
+          const res2 = await fetch(delUrl, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:parseInt(id,10)})}); const txt = await res2.text(); showResult(res2.status+' '+res2.statusText, txt); showMsg(document.getElementById('del-msg'),res2.status+' '+res2.statusText)
+        } else { const txt = await res.text(); showResult(res.status+' '+res.statusText, txt); showMsg(document.getElementById('del-msg'),res.status+' '+res.statusText) }
+      }catch(e){ showMsg(document.getElementById('del-msg'),'Erro: '+e.message) }
+      setBusy(false);
+    })
+
+    // carrega automaticamente ao abrir a página
+    window.addEventListener('load', ()=>{ document.getElementById('btn-get-all').click() })
+  </script>
+</body>
+</html>

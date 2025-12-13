@@ -19,7 +19,7 @@ class Server {
     private:
         const Config &_config;
         int epoll_fd;
-        epoll_event events[10];
+        epoll_event events[64];
         std::vector<int> server_fds;
         std::map<int, ServerConfig> server_by_fd;
         std::map<int, ServerConfig*> client_server;
@@ -32,6 +32,17 @@ class Server {
         void handleClientRequest(int client_fd);
         const Location &findLocation(ServerConfig *serverCfg, HttpRequest &request);
         void eventLoop();
+        void removeClient(int client_fd);
+        void readClientBuffer(const int& client_fd, char* buffer, size_t bufSize, int& bytes);
+        void addBuffer(Client& client, char* buffer, int& bytes);
+        IMethodHandler* buildMethodHandler(Client& client, int &client_fd);
+        void sendResponse(const int &client_fd, Client& client);
+        bool removeMethodHandler(Client& client, HttpResponse& resp);
+        void finalizeClientConnection(const int &client_fd, Client& client, const bool& closeConnection);
+        void logStatusResponse(const int &client_fd, Client& client, HttpResponse& resp);
+        void logClientDesconected(const int &client_fd);
+        void logClienteConected(const int &client_fd);
+        void logClienteRequest(const int &client_fd, Client& client);
 };
 
 #endif

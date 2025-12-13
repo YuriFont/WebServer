@@ -11,7 +11,17 @@ HANDLERS =	DeleteHandler.cpp \
 			GetHandler.cpp \
 			PostHandler.cpp \
 			RequestHandler.cpp\
-			CgiHandler.cpp
+			CgiHandler.cpp \
+			RedirectHandler.cpp \
+			NotImplementedHandler.cpp \
+			MethodNotAllowedHandler.cpp
+
+BODYPROCESSOR = RawProcessor.cpp \
+				MultipartProcessor.cpp \
+				UrlEncodedProcessor.cpp \
+				BodyProcessorFactory.cpp
+
+ABSTRACTS = ABodyProcessor.cpp
 
 HTTP =		HttpRequest.cpp \
 			HttpResponse.cpp \
@@ -23,17 +33,21 @@ FOLDERS = 	config/ \
 			core/ \
 			handlers/ \
 			http/ \
-			utils/
+			utils/ \
+			bodyProcessor/ \
+			abstracts/
 
 FILES = $(addprefix config/, $(CONFIG)) \
 		$(addprefix core/, $(CORE)) \
 		$(addprefix handlers/, $(HANDLERS)) \
 		$(addprefix http/, $(HTTP)) \
-		$(addprefix utils/, $(UTILS))
+		$(addprefix utils/, $(UTILS)) \
+		$(addprefix bodyProcessor/, $(BODYPROCESSOR)) \
+		$(addprefix abstracts/, $(ABSTRACTS))
 		
 SRC = $(addprefix src/, $(FILES))
 OBJ = $(addprefix obj/, ${FILES:%.cpp=%.o})
-CXX = c++
+CXX = c++ -g
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
 all: $(NAME)

@@ -75,7 +75,7 @@ int ServerConfig::initSocket() {
         close(socket_fd);
         exit(EXIT_FAILURE);
     }
-    if (listen(socket_fd, 5) < 0)
+    if (listen(socket_fd, SOMAXCONN) < 0)
     {
         std::cerr << "Error in listen: " << strerror(errno) << std::endl;
         close(socket_fd);

@@ -21,6 +21,8 @@ class Utils {
         static bool writeFile(const std::string &path, const std::string &data);
         static void freeCharArray(char **envp);
         static char **vecToCharArray(const std::vector<std::string> &vec);
+        static std::string extractValue(const std::string& line, const std::string& key);
+
 };
 
 #endif

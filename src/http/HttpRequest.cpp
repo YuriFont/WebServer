@@ -9,6 +9,10 @@ HttpRequest::HttpRequest() {
 
 };
 
+void HttpRequest::eraseBody() {
+    this->_body.erase();
+};
+
 HttpRequest::HttpRequest(const char *buffer): _buffer(buffer) {
     std::string req(buffer);
     
@@ -77,8 +81,12 @@ void HttpRequest::parser() {
         _headers[key] = value;
     }
 
-    if (this->getContentLength() > 0)
+
+
+    if (this->getContentLength() > 0) {
+        _body.reserve(this->getContentLength());
         _body = (headerEnd != std::string::npos) ? this->_buffer.substr(headerEnd + 4) : "";
+    }
 };
 
 HttpRequest::~HttpRequest() {};
@@ -125,6 +133,10 @@ int HttpRequest::getContentLength() const {
     std::string value = it->second;
     return std::atoi(value.c_str());
 }
+
+void HttpRequest::reserveSpaceBody(size_t size) {
+    this->_body.reserve(size);
+};
 
 
 void HttpRequest::appendBuffer(const std::string& buffer) {

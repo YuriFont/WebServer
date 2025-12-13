@@ -4,16 +4,36 @@
 #include "../http/HttpRequest.hpp"
 #include "../http/HttpResponse.hpp"
 #include "../config/Location.hpp"
+#include "../core/ServerConfig.hpp"
 #include "../utils/Utils.hpp"
+#include "../interfaces/IMethodHandler.hpp"
 
-class CgiHandler{
+class CgiHandler : public IMethodHandler {
+
     private:
-        static std::vector<std::string> buildCgiEnv(const HttpRequest &request, const Location &location, const std::string &scriptPath);
-        static void spawnCgiChild(const HttpRequest &request, const Location &location,
+
+        const ServerConfig& _config;
+        const HttpRequest& _request;
+        const Location& _location;
+        HttpResponse* _response;
+        std::string _body;
+        bool _isFinish;
+        std::vector<std::string> buildCgiEnv(const HttpRequest &request, const Location &location, const std::string &scriptPath);
+        void spawnCgiChild(const HttpRequest &request, const Location &location,
                            const std::string &path, const std::string &interpreter,
                            int inPipe[2], int outPipe[2]);
-        static std::string readCgiOutput(int outPipe[2], pid_t pid);
-        static HttpResponse responseHTTP(const std::string &output, HttpResponse &response);
+        std::string readCgiOutput(int outPipe[2], pid_t pid);
+        HttpResponse& responseHTTP(const std::string &output);
+        CgiHandler();
+        CgiHandler& operator=(const CgiHandler& other);
     public:
-        static HttpResponse process(const HttpRequest &request, const Location &location, std::string extension);
+        CgiHandler(const ServerConfig& config, const HttpRequest& request, const Location& location);
+        CgiHandler(const CgiHandler& other);
+        ~CgiHandler(); 
+        virtual void handleData(const std::string& chunk);
+        virtual bool isFinished();
+        virtual HttpResponse& getResponse();
+        virtual IMethodHandler* clone() const;
+        std::string getExtensionCgi();
+        HttpResponse& process(const HttpRequest &request, const Location &location, std::string extension);
 };

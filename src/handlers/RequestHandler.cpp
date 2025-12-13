@@ -1,26 +1,10 @@
 #include "../../include/handlers/RequestHandler.hpp"
-#include "../../include/handlers/GetHandler.hpp"
-#include "../../include/handlers/PostHandler.hpp"
-#include "../../include/handlers/DeleteHandler.hpp"
-#include "../../include/http/HttpResponse.hpp"
-#include "../../include/handlers/CgiHandler.hpp"
 
-RequestHandler::RequestHandler(const Config &config) : _config(config) {}
+RequestHandler::RequestHandler(const ServerConfig &config) : _config(config) {}
 
-HttpResponse RequestHandler::handle(HttpRequest &request, const Location &location, const ServerConfig &server)
-{
-    //Redirecionamento global (antes de qualquer método)
-    if (!location.getRedirect().empty()){
-        HttpResponse response;
-        response.setHttpVersion(request.getHttpVersion());
-        response.setStatus(location.getRedirectCode());
-        response.setHeader("Location", location.getRedirect());
-        response.setContentLength(0);
-        response.setConnectionClose(true);
-        return response;
-    }
+bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Location &location) {
 
-    // Detecção de CGI
+        // Detecção de CGI
     std::string rawPath = request.getPath();
 
     // Remover query string
@@ -30,22 +14,38 @@ HttpResponse RequestHandler::handle(HttpRequest &request, const Location &locati
     // Agora extrair extensão corretamente
     size_t dot = path.find_last_of('.');
 
-    if (dot != std::string::npos) {
-        std::string extension = path.substr(dot);  // → ".py"
-        if (location.hasCgiForExtension(extension))
-            return CgiHandler::process(request, location, extension);
+    if (dot == std::string::npos) {
+        return false;
     }
+    std::string extension = path.substr(dot);  // → ".py"
+    if (location.hasCgiForExtension(extension))
+        return true;
+    return false;
+}
+
+IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &request, const Location &location)
+{
 
     std::string method = request.getMethod();
 
+    if (location.isCgiEnabled() && isCgiEnabledForExtension(request, location))
+        return new CgiHandler(config, request, location);
+        
+    if (!location.isMethodAllowed(method)) {
+        return new MethodNotAllowedHandler(location.getMethods());
+    }
+    if (!location.getRedirect().empty()) {
+        return new RedirectHandler(config, request, location);
+    }
+
     if (method == "GET")
-        return GetHandler::process(request, location);
+        return new GetHandler(config, request, location);
 
     if (method == "POST")
-        return PostHandler::process(request, location, server);
+        return new PostHandler(config, request, location);
 
     if (method == "DELETE")
-        return DeleteHandler::process(request, location);
+        return new DeleteHandler(config, request, location);
 
-    throw std::runtime_error("Unsupported HTTP method: " + method);
+    return new NotImplementedHandler(config, request, location);
 }
