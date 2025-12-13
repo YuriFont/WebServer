@@ -171,7 +171,9 @@ void Config::_parseLocation(std::istringstream &iss, ServerConfig &server) {
 
     if (!(iss >> line))
         throw std::runtime_error("Invalid location directive in " + _filePath);
+    
     location.setPath(line);
+
     if (!(iss >> line) || line != "{")
         throw std::runtime_error("Expected '{' after location path in " + _filePath);
 
