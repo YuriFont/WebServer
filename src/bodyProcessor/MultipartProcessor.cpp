@@ -12,7 +12,7 @@ MultipartProcessor::MultipartProcessor(const ServerConfig& config, const Locatio
 bool MultipartProcessor::isMaxBodySize() {
     if (_contentLength > _config.client_max_body_size)
         return true;
-    else if (_contentLength > _bytesReceived)
+    else if (_bytesReceived > _contentLength )
         return true;
     return false;
 };
@@ -59,6 +59,27 @@ bool MultipartProcessor::append(std::string data, size_t len) {
     return true;
 }
 
+std::string MultipartProcessor::setTimeInNameFile(std::string & fileName) {
+
+    size_t dot = fileName.find('.');
+    std::string newNameFile = fileName.substr(0, dot) + "_" + Utils::toString(std::time(0)) + fileName.substr(dot, (fileName.size() - dot));
+    return newNameFile;
+}
+
+
+std::string MultipartProcessor::getNameFileMultipart() {
+
+    std::string uploadStore = _location.getUploadStore() + "/";
+    std::string filePath;
+    
+    filePath =  _currentContents.fileName.empty() ? uploadStore + _currentContents.name + ".txt" : uploadStore + _currentContents.fileName;
+    if (access(filePath.c_str(), F_OK) == 0) {
+        filePath = _currentContents.fileName.empty() ? uploadStore + _currentContents.name + Utils::toString(std::time(0)) + ".txt" : uploadStore + setTimeInNameFile(_currentContents.fileName);
+    }
+
+    return filePath;
+}
+
 void MultipartProcessor::handleMultipart(const std::string& chunk) {
 
 
@@ -75,8 +96,7 @@ void MultipartProcessor::handleMultipart(const std::string& chunk) {
         std::string contents = _body.substr(0, endHeaders);
         _body.erase(0, endHeaders + 4);
         parseHeaderLine(contents, _currentContents);
-        std::string uploadStore = _location.getUploadStore() + "/";
-        std::string filePath =  _currentContents.fileName.empty() ? uploadStore + _currentContents.name + ".txt" : uploadStore + _currentContents.fileName;
+        std::string filePath = getNameFileMultipart();
         _outFile.open(filePath.c_str(), std::ios::binary | std::ios::app);
     }
 

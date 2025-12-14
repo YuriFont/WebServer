@@ -56,6 +56,8 @@ class MultipartProcessor : public ABodyProcessor {
         void createFile();
         void finishFileUpload();
         std::string getBoundary(const std::string& contentType);
+        std::string getNameFileMultipart();
+        std::string setTimeInNameFile(std::string & fileName);
 };
 
 #endif
