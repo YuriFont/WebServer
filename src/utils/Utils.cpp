@@ -72,6 +72,32 @@ std::string Utils::buildPathRequisition(const std::string& locationPath, const s
     return result;
 }
 
+std::string Utils::normalizePath(const std::string &path)
+{
+    std::vector<std::string> stack;
+    std::stringstream ss(path);
+    std::string token;
+
+    while (std::getline(ss, token, '/')) {
+        if (token.empty() || token == ".")
+            continue;
+        if (token == "..") {
+            if (!stack.empty())
+                stack.pop_back();
+        } else {
+            stack.push_back(token);
+        }
+    }
+
+    std::string result = "";
+    for (size_t i = 0; i < stack.size(); i++) {
+        result += stack[i];
+        if (i + 1 < stack.size())
+            result += "/";
+    }
+    return result;
+}
+
 std::string Utils::getContentType(const std::string& path) {
     if (path.find(".html") != std::string::npos) return "text/html";
     if (path.find(".css") != std::string::npos) return "text/css";
