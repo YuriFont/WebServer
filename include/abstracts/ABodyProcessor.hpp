@@ -20,6 +20,7 @@ class ABodyProcessor : public IBodyProcessor {
 
     protected:
         const ServerConfig &_config;
+        static unsigned long _uploadCounter;
         bool _isFinished;
         ABodyProcessor(const ServerConfig &config);
     public:

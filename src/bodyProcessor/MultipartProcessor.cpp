@@ -61,20 +61,59 @@ bool MultipartProcessor::append(std::string data, size_t len) {
 
 std::string MultipartProcessor::setTimeInNameFile(std::string & fileName) {
 
-    size_t dot = fileName.find('.');
-    std::string newNameFile = fileName.substr(0, dot) + "_" + Utils::toString(std::time(0)) + fileName.substr(dot, (fileName.size() - dot));
-    return newNameFile;
+    std::string result;
+    const std::time_t now = std::time(0);
+
+    size_t dot = fileName.rfind('.');
+    std::string base;
+    std::string ext;
+
+    if (dot != std::string::npos) {
+        base = fileName.substr(0, dot);
+        ext  = fileName.substr(dot);
+    } else {
+        base = fileName;
+    }
+
+    result.reserve(base.size() + ext.size() + 32);
+    result.append(base);
+    result.append("_");
+    result.append(Utils::toString(now));
+    result.append("_");
+    result.append(Utils::toString(_uploadCounter++));
+    result.append(ext);
+
+    return result;
 }
 
 
 std::string MultipartProcessor::getNameFileMultipart() {
 
-    std::string uploadStore = _location.getUploadStore() + "/";
-    std::string filePath;
-    
-    filePath =  _currentContents.fileName.empty() ? uploadStore + _currentContents.name + ".txt" : uploadStore + _currentContents.fileName;
+    const std::string uploadStore = _location.getUploadStore() + "/";
+    const std::time_t now = std::time(0);
+
+    std::string fileName;
+
+    if (_currentContents.fileName.empty()) {
+        fileName = _currentContents.name + ".txt";
+    } else {
+        fileName = _currentContents.fileName;
+    }
+
+    std::string filePath = uploadStore + fileName;
+
     if (access(filePath.c_str(), F_OK) == 0) {
-        filePath = _currentContents.fileName.empty() ? uploadStore + _currentContents.name + Utils::toString(std::time(0)) + ".txt" : uploadStore + setTimeInNameFile(_currentContents.fileName);
+        if (_currentContents.fileName.empty()) {
+            filePath = uploadStore
+                     + _currentContents.name
+                     + "_"
+                     + Utils::toString(now)
+                     + "_"
+                     + Utils::toString(_uploadCounter++)
+                     + ".txt";
+        } else {
+            filePath = uploadStore + setTimeInNameFile(fileName);
+        }
     }
 
     return filePath;
