@@ -27,7 +27,8 @@ HTTP =		HttpRequest.cpp \
 			HttpResponse.cpp \
 			HttpStatus.cpp
 
-UTILS = 	Utils.cpp
+UTILS = 	Utils.cpp \
+			ErrorPage.cpp
 
 FOLDERS = 	config/ \
 			core/ \
