@@ -40,15 +40,24 @@ IMethodHandler* DeleteHandler::clone() const {
 HttpResponse& DeleteHandler::process(const HttpRequest &request, const Location &location)
 {
     // Implementação do DELETE ficará aqui
-    std::string path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
+    std::string rawPath = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
+
+    
+    std::string path = Utils::normalizePath(rawPath);
+    std::string root = Utils::normalizePath(location.getRoot());
 
     _response = new HttpResponse();
-    struct stat info;
-
+    
     _response->setHttpVersion(request.getHttpVersion());
     _response->setContentLength(0);
     _response->setConnectionClose(true);
+    
+    if (path.compare(0, root.size(), root) != 0) {
+        _response->setStatus(403);
+        return (*_response);
+    }
 
+    struct stat info;
     if (stat(path.c_str(), &info) != 0) {
 
         if (errno == EACCES)
