@@ -49,7 +49,7 @@ HttpResponse* UrlEncodedProcessor::getResult() {
 
 void UrlEncodedProcessor::handleFormUrlencoded(const std::string& body) {
 
-    std::string uploadPath = _location.getUploadStore() + "/upload_" + Utils::toString(std::time(0)) + ".txt";
+    std::string uploadPath = _location.getUploadStore() + "/upload_" + Utils::toString(std::time(0)) + "_" + Utils::toString(_uploadCounter++) + ".txt";
     if (Utils::writeFile(uploadPath, body)) {
         _response->setStatus(201);
         _response->setContentType("text/html");

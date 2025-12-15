@@ -12,7 +12,7 @@ MultipartProcessor::MultipartProcessor(const ServerConfig& config, const Locatio
 bool MultipartProcessor::isMaxBodySize() {
     if (_contentLength > _config.client_max_body_size)
         return true;
-    else if (_contentLength > _bytesReceived)
+    else if (_bytesReceived > _contentLength )
         return true;
     return false;
 };
@@ -59,6 +59,66 @@ bool MultipartProcessor::append(std::string data, size_t len) {
     return true;
 }
 
+std::string MultipartProcessor::setTimeInNameFile(std::string & fileName) {
+
+    std::string result;
+    const std::time_t now = std::time(0);
+
+    size_t dot = fileName.rfind('.');
+    std::string base;
+    std::string ext;
+
+    if (dot != std::string::npos) {
+        base = fileName.substr(0, dot);
+        ext  = fileName.substr(dot);
+    } else {
+        base = fileName;
+    }
+
+    result.reserve(base.size() + ext.size() + 32);
+    result.append(base);
+    result.append("_");
+    result.append(Utils::toString(now));
+    result.append("_");
+    result.append(Utils::toString(_uploadCounter++));
+    result.append(ext);
+
+    return result;
+}
+
+
+std::string MultipartProcessor::getNameFileMultipart() {
+
+    const std::string uploadStore = _location.getUploadStore() + "/";
+    const std::time_t now = std::time(0);
+
+    std::string fileName;
+
+    if (_currentContents.fileName.empty()) {
+        fileName = _currentContents.name + ".txt";
+    } else {
+        fileName = _currentContents.fileName;
+    }
+
+    std::string filePath = uploadStore + fileName;
+
+    if (access(filePath.c_str(), F_OK) == 0) {
+        if (_currentContents.fileName.empty()) {
+            filePath = uploadStore
+                     + _currentContents.name
+                     + "_"
+                     + Utils::toString(now)
+                     + "_"
+                     + Utils::toString(_uploadCounter++)
+                     + ".txt";
+        } else {
+            filePath = uploadStore + setTimeInNameFile(fileName);
+        }
+    }
+
+    return filePath;
+}
+
 void MultipartProcessor::handleMultipart(const std::string& chunk) {
 
 
@@ -75,8 +135,7 @@ void MultipartProcessor::handleMultipart(const std::string& chunk) {
         std::string contents = _body.substr(0, endHeaders);
         _body.erase(0, endHeaders + 4);
         parseHeaderLine(contents, _currentContents);
-        std::string uploadStore = _location.getUploadStore() + "/";
-        std::string filePath =  _currentContents.fileName.empty() ? uploadStore + _currentContents.name + ".txt" : uploadStore + _currentContents.fileName;
+        std::string filePath = getNameFileMultipart();
         _outFile.open(filePath.c_str(), std::ios::binary | std::ios::app);
     }
 

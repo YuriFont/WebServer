@@ -37,7 +37,7 @@ bool RawProcessor::append(std::string data, size_t len) {
 
 void RawProcessor::createFile() {
     std::string extension = getExtension(_contentType);
-    std::string uploadPath = _location.getUploadStore() + "/upload_" + Utils::toString(std::time(0)) + extension;
+    std::string uploadPath = _location.getUploadStore() + "/upload_" + Utils::toString(std::time(0)) + "_" + Utils::toString(_uploadCounter++) + extension;
     _fileName = uploadPath;
     _outFile.open(_fileName.c_str(), std::ios::binary | std::ios::app);
 }
