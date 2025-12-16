@@ -142,17 +142,24 @@ void Server::logClientDesconected(const int &client_fd) {
     std::cout << RED << "[FD " << client_fd << "] (-) Connection closed" << RESET << std::endl;
 }
 
-void Server::logStatusResponse(const int &client_fd, Client& client, HttpResponse& resp) {
-    std::cout << "[FD " << client_fd << "]" << " ---> " << client.getRequest().getMethod() << " " << client.getRequest().getPath() << " (" << resp.getStatusResponse() <<  ") - "<< resp.getContentLength() << " bytes" << std::endl;
+void Server::logStatusResponse(const int &client_fd, Client& client) {
+    std::cout << "[FD " << client_fd << "]" << " ---> " << client.getRequest().getMethod() << " " << client.getRequest().getPath() << " (" << client.getCodeResponseStatus() <<  ") - "<< client.getLenBody() << " bytes" << std::endl;
 }
 
 void Server::sendResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
-    send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
-    logStatusResponse(client_fd, client, resp);
-    bool closeConnection = removeMethodHandler(client, resp);
-    finalizeClientConnection(client_fd, client, closeConnection);
+    client.setResponse(resp.toString());
+    client.setCloseConnection(resp.isConnectionClose());
+    client.setCodeResponseStatus(resp.getStatusResponse());
+    // send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
+    // logStatusResponse(client_fd, client);
+    // bool closeConnection = 
+    removeMethodHandler(client, resp);
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT;
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
+    // finalizeClientConnection(client_fd, client, closeConnection);
 }
 
 void Server::addBuffer(Client& client, char* buffer, int& bytes) {
@@ -189,6 +196,30 @@ void Server::handleClientRequest(int client_fd) {
     }
 }
 
+void Server::sendResponseClient(int client_fd) {
+
+    Client& client = clients[client_fd];
+    ssize_t bytesSend = send(client_fd, (client.getResponse().c_str() + client.getBytesSend()),  (client.getLenBody() - client.getBytesSend()), 0);
+
+    // std::cout << "Bytes send: " << bytesSend << std::endl;
+    if (bytesSend == -1) {
+        std::cout << "[FD " << client_fd << "] Error while send the response" << std::endl;
+        removeClient(client_fd);
+        return;
+    }
+
+
+    client.addBytesSend(bytesSend);
+    // Se precisa fazer cast e porque o tipo está errado
+    if ((size_t)client.getBytesSend() == client.getLenBody()) {
+        logStatusResponse(client_fd, client);
+        epoll_event& event = client.getDataEvent();
+        event.events = EPOLLIN;
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
+        finalizeClientConnection(client_fd, client, client.getCloseConnection());
+    }
+};
+
 void Server::eventLoop() {
     while (_running) {
         int n = epoll_wait(epoll_fd, events, 64, 1000);
@@ -200,7 +231,12 @@ void Server::eventLoop() {
                 handleNewConnection(fd);
             }
             else {
-                handleClientRequest(fd);
+                if (events[i].events & EPOLLIN) {
+                    handleClientRequest(fd);
+                }
+                if (events[i].events & EPOLLOUT) {
+                    sendResponseClient(fd);
+                }
             }
         }
     }

@@ -1,12 +1,13 @@
 #include "../../include/core/Client.hpp"
 #include "../../include/utils/Utils.hpp"
 
-Client::Client(): handler(NULL)  {
-    this->contentLength = 0;
+Client::Client(): contentLength(0), bytesSend(0), handler(NULL)  {
     this->client_fd = -1;
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+    this->_responseStatus = -1;
+    this->closeConnection = false;
 };
 
 Client::~Client() {
@@ -16,13 +17,40 @@ Client::~Client() {
     };
 };
 
-Client::Client(const int& client_fd): handler(NULL) {
+void Client::addBytesSend(ssize_t& bytes) {
+    this->bytesSend += bytes;
+}
+
+ssize_t& Client::getBytesSend() {
+    return this->bytesSend;
+}
+
+std::string& Client::getResponse() {
+    return this->_response;
+};
+
+void Client::setCloseConnection(const bool& connection) {
+    this->closeConnection = connection;
+};
+const bool& Client::getCloseConnection() {
+    return this->closeConnection;
+};
+
+void Client::setResponse(const std::string& resp) {
+    this->_response = resp;
+    this->contentLength = resp.size();
+};
+
+Client::Client(const int& client_fd): contentLength(0), bytesSend(0), handler(NULL) {
 
     this->client_fd = client_fd;
     this->event.data.fd = client_fd;
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+
+    this->_responseStatus = -1;
+    this->closeConnection = false;
 };
 
 Client::Client(const Client& client): handler(NULL) {
@@ -45,6 +73,7 @@ Client& Client::operator=(const Client& other) {
         this->isHeadersParsed = other.isHeadersParsed;
         this->event = other.event;
         this->request = other.request;
+        this->bytesSend = other.bytesSend;
         if (other.handler != NULL) {
             this->handler = other.handler->clone();
         }
@@ -91,10 +120,18 @@ bool Client::isAllHeaders() {
     return this->isHeadersReceived;
 }
 
-int Client::getLenBody() {
+size_t Client::getLenBody() {
 
     return this->contentLength;
 }
+
+void Client::setCodeResponseStatus(const std::string& status) {
+    this->_responseStatus = status;
+};
+const std::string& Client::getCodeResponseStatus() {
+
+    return this->_responseStatus;
+};
 
 HttpRequest& Client::getRequest() {
     return this->request;
@@ -105,5 +142,9 @@ void Client::cleanData() {
     this->contentLength = 0;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+    this->_response.erase();
+    this->closeConnection = false;
+    this->_responseStatus = -1;
+    this->bytesSend = 0;
     this->request.clearAllData();
 }

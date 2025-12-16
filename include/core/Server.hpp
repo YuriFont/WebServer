@@ -29,6 +29,7 @@ class Server {
         void initAllSockets();
         void registerSocketsInEpoll();
         void handleNewConnection(int server_fd);
+        void sendResponseClient(int client_fd);
         void handleClientRequest(int client_fd);
         const Location &findLocation(ServerConfig *serverCfg, HttpRequest &request);
         void eventLoop();
@@ -39,7 +40,7 @@ class Server {
         void sendResponse(const int &client_fd, Client& client);
         bool removeMethodHandler(Client& client, HttpResponse& resp);
         void finalizeClientConnection(const int &client_fd, Client& client, const bool& closeConnection);
-        void logStatusResponse(const int &client_fd, Client& client, HttpResponse& resp);
+        void logStatusResponse(const int &client_fd, Client& client);
         void logClientDesconected(const int &client_fd);
         void logClienteConected(const int &client_fd);
         void logClienteRequest(const int &client_fd, Client& client);
