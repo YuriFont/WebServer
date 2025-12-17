@@ -62,23 +62,45 @@ void Server::handleNewConnection(int server_fd) {
 
 const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &request) {
     const std::map<std::string, Location> &locs = serverCfg->getLocations();
-
     std::string path = request.getPath();
     std::string match = "/";
     size_t longestMatch = 0;
+    std::string ext = Utils::getExtension(path);
+    const Location *globalCgi = NULL;
 
-    for (std::map<std::string, Location>::const_iterator it = locs.begin();
-         it != locs.end(); ++it)
-    {
-        if (path.compare(0, it->first.size(), it->first) == 0 &&
-            it->first.size() > longestMatch)
-        {
-            longestMatch = it->first.size();
-            match = it->first;
+    for (std::map<std::string, Location>::const_iterator it = locs.begin(); it != locs.end(); ++it) {
+        const std::string &locPath = it->first;
+        const Location &loc = it->second;
+
+        if (!ext.empty() && loc.isGlobalCgi())
+            globalCgi = &loc;
+
+        if (loc.isGlobalCgi())
+            continue;
+
+        if (path.compare(0, locPath.size(), locPath) != 0)
+            continue;
+
+        if (path.size() > locPath.size() && locPath != "/" && path[locPath.size()] != '/')
+            continue;
+
+        if (locPath.size() > longestMatch) {
+            longestMatch = locPath.size();
+            match = locPath;
         }
     }
 
-    return locs.at(match);
+    const Location &baseLoc = locs.at(match);
+
+    if (!ext.empty()) {
+        if (baseLoc.hasCgiForExtension(ext))
+            return baseLoc;
+
+        if (globalCgi && globalCgi->hasCgiForExtension(ext))
+            return *globalCgi;
+    }
+
+    return baseLoc;
 }
 
 void Server::removeClient(int client_fd) {

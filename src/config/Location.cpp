@@ -244,6 +244,10 @@ bool Location::isGlobalCgi(void) const {
     return _global_cgi;
 }
 
+std::string Location::getCgiGlobalExt() const {
+    return _global_cgi_ext;
+}
+
 bool Location::isMethodAllowed(const std::string& method) const {
 
     for (size_t i = 0; i < this->_methods.size(); i++) {

@@ -48,6 +48,12 @@ jobs:
         echo "🚀 Rodando testes REDIRECT..."
         bash redirect_test.sh
 
+    - name: Run CGI tests
+      working-directory: tests
+      run: |
+        echo "🚀 Rodando testes CGI..."
+        bash cgi_test.sh
+
     - name: Upload logs (if any)
       if: always()
       uses: actions/upload-artifact@v4

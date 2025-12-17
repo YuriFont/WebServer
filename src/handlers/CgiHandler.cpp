@@ -195,10 +195,12 @@ HttpResponse& CgiHandler::responseHTTP(const std::string &output)
     return *_response;
 }
 
-HttpResponse& CgiHandler::process(const HttpRequest &request, const Location &location, std::string extension){
-
-    std::string path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
+HttpResponse& CgiHandler::process(const HttpRequest &request, const Location &location, std::string extension) {
+    std::string path = "." + request.getPath();
     std::string interpreter = location.getCgiPathForExtension(extension);
+
+    if (!location.isGlobalCgi())
+        path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
 
     int inPipe[2]; //servidor -> CGI (STDIN do CGI)
     int outPipe[2]; //CGI -> servidor (STDOUT do CGI)
