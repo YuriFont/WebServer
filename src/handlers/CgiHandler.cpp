@@ -196,11 +196,14 @@ HttpResponse& CgiHandler::responseHTTP(const std::string &output)
 }
 
 HttpResponse& CgiHandler::process(const HttpRequest &request, const Location &location, std::string extension) {
-    std::string path = "." + request.getPath();
-    std::string interpreter = location.getCgiPathForExtension(extension);
+    std::string interpreter;
+    std::string path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
+    std::string requestExt = Utils::getExtension(request.getPath());
 
-    if (!location.isGlobalCgi())
-        path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
+    if (_config.hasGlobalCGI && _config.hasExtGlobalCgi(requestExt))
+        interpreter = _config.extAndPath.find(requestExt)->second;
+    else
+        interpreter = location.getCgiPathForExtension(extension);
 
     int inPipe[2]; //servidor -> CGI (STDIN do CGI)
     int outPipe[2]; //CGI -> servidor (STDOUT do CGI)

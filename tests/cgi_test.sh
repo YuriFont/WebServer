@@ -5,8 +5,8 @@ CONF_FILE=./config/test.conf
 PORT=8080
 LOGFILE="tests/logs/cgi_test.log"
 
-CGI_PATH="/cgi-bin/test.py"
-CGI_PATH_GLOBAL="/www/html/test.py"
+CGI_PATH="/cgi-bin/test.py?yuri"
+CGI_PATH_GLOBAL="/test.py?yuri"
 CGI_URL="http://localhost:$PORT$CGI_PATH"
 CGI_URL_GLOBAL="http://localhost:$PORT$CGI_PATH_GLOBAL"
 mkdir -p logs

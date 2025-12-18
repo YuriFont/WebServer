@@ -208,15 +208,18 @@ std::string Utils::extractValue(const std::string& line, const std::string& key)
     return line.substr(pos, endPos - pos);
 }
 
-std::string Utils::getExtension(const std::string &path)
-{
-    size_t dot = path.find_last_of('.');
-    size_t slash = path.find_last_of('/');
+std::string Utils::getExtension(const std::string &path) {
+    std::string rawPath = path;
+
+    size_t q = rawPath.find('?');
+    std::string path2 = (q != std::string::npos) ? rawPath.substr(0, q) : rawPath;
+    size_t dot = path2.find_last_of('.');
 
     if (dot == std::string::npos)
         return "";
-    if (slash != std::string::npos && dot < slash)
+
+    if (dot == path2.size() - 1)
         return "";
 
-    return path.substr(dot);
+    return path2.substr(dot);
 }

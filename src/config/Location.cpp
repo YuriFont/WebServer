@@ -1,7 +1,7 @@
 #include "../../include/config/Location.hpp"
 #include "../../include/utils/Utils.hpp"
 
-Location::Location() : _autoindex(false), _upload_enable(false), _cgi_enable(false),  _global_cgi(false) {}
+Location::Location() : _autoindex(false), _upload_enable(false), _cgi_enable(false) {}
 
 Location::~Location() {}
 
@@ -204,48 +204,6 @@ void Location::addCgi(std::istringstream &iss) {
     if (!_cgi_enable)
         _cgi_enable = true;
     _cgi[extension] = scriptPath;
-
-    if (_path[0] == '~')
-        checkGlobalCGI(_path);
-}
-
-void Location::checkGlobalCGI(const std::string &path) {
-    if (path.size() < 5)
-        throw (std::runtime_error("Error in `cgi Global`: Invalid global CGI path"));
-
-    if (path[path.size() - 1] != '$')
-        throw (std::runtime_error("Error in `cgi Global`: Global CGI location must end with '$'"));
-
-    if (path[1] != '/' || path[2] != '.')
-        throw (std::runtime_error("Error in `cgi Global`: Invalid global CGI path"));
-
-    for (std::string::size_type i = 3; i < path.size() - 1; ++i) {
-        char c = path[i];
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) {
-            throw (std::runtime_error("Error in `cgi Global`: Invalid global CGI path"));
-        }
-    }
-
-    if (_cgi.size() != 1)
-        throw (std::runtime_error("Error in `cgi Global`: Global CGI location must define exactly one CGI"));
-
-    _global_cgi_ext = path.substr(2, path.size() - 3);
-
-    std::map<std::string, std::string>::iterator it;
-
-    it = _cgi.find(_global_cgi_ext);
-    if (it == _cgi.end())
-        throw (std::runtime_error("Error in `cgi Global`: No CGI configured for this extension"));
-
-    _global_cgi = true;
-}
-
-bool Location::isGlobalCgi(void) const {
-    return _global_cgi;
-}
-
-std::string Location::getCgiGlobalExt() const {
-    return _global_cgi_ext;
 }
 
 bool Location::isMethodAllowed(const std::string& method) const {

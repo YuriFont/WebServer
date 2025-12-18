@@ -25,12 +25,12 @@ bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Locati
 
 IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &request, const Location &location)
 {
-
     std::string method = request.getMethod();
+    std::string requestExt = Utils::getExtension(request.getPath());
 
-    if (location.isGlobalCgi() || (location.isCgiEnabled() && isCgiEnabledForExtension(request, location)))
+    if ((location.isCgiEnabled() && isCgiEnabledForExtension(request, location)) || (config.hasGlobalCGI && config.hasExtGlobalCgi(requestExt)))
         return new CgiHandler(config, request, location);
-        
+
     if (!location.isMethodAllowed(method)) {
         return new MethodNotAllowedHandler(location.getMethods());
     }

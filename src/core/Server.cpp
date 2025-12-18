@@ -65,18 +65,9 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
     std::string path = request.getPath();
     std::string match = "/";
     size_t longestMatch = 0;
-    std::string ext = Utils::getExtension(path);
-    const Location *globalCgi = NULL;
 
     for (std::map<std::string, Location>::const_iterator it = locs.begin(); it != locs.end(); ++it) {
         const std::string &locPath = it->first;
-        const Location &loc = it->second;
-
-        if (!ext.empty() && loc.isGlobalCgi())
-            globalCgi = &loc;
-
-        if (loc.isGlobalCgi())
-            continue;
 
         if (path.compare(0, locPath.size(), locPath) != 0)
             continue;
@@ -90,17 +81,7 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
         }
     }
 
-    const Location &baseLoc = locs.at(match);
-
-    if (!ext.empty()) {
-        if (baseLoc.hasCgiForExtension(ext))
-            return baseLoc;
-
-        if (globalCgi && globalCgi->hasCgiForExtension(ext))
-            return *globalCgi;
-    }
-
-    return baseLoc;
+    return locs.at(match);
 }
 
 void Server::removeClient(int client_fd) {

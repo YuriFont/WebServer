@@ -18,7 +18,6 @@ class Location {
         int getRedirectCode() const;
         bool isUploadEnabled() const;
         bool isCgiEnabled() const;
-        bool isGlobalCgi() const;
         std::string getUploadStore() const;
         const std::map<std::string, std::string>& getCgi() const;
         std::string getCgiGlobalExt() const;
@@ -34,7 +33,6 @@ class Location {
         bool hasCgiForExtension(const std::string &ext) const;
         std::string getCgiPathForExtension(const std::string &ext) const;
         void addCgi(std::istringstream &iss);
-        void checkGlobalCGI(const std::string &path);
 
     private:
         std::string _path;
@@ -46,8 +44,6 @@ class Location {
         int _redirectCode;
         bool _upload_enable;
         bool _cgi_enable;
-        bool _global_cgi;
-        std::string _global_cgi_ext;
         std::string _uploadStore;
         std::map<std::string, std::string> _cgi;
 };
