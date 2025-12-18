@@ -23,13 +23,13 @@ bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Locati
     return false;
 }
 
-IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &request, const Location &location)
+IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &request, const Location &location, int client_fd)
 {
 
     std::string method = request.getMethod();
 
     if (location.isCgiEnabled() && isCgiEnabledForExtension(request, location))
-        return new CgiHandler(config, request, location);
+        return new CgiHandler(config, request, location, client_fd);
         
     if (!location.isMethodAllowed(method)) {
         return new MethodNotAllowedHandler(location.getMethods());

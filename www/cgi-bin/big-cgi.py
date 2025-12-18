@@ -8,7 +8,7 @@ sys.stdout.write("\r\n")
 
 # Corpo da resposta (> 5000 bytes)
 line = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\n"  # 37 bytes aprox
-repeat = 1500000  # 37 * 150 ≈ 5550 bytes
+repeat = 150000  # 37 * 150 ≈ 5550 bytes
 
 for i in range(repeat):
     sys.stdout.write(f"{i:03d} - {line}")

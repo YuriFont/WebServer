@@ -103,7 +103,7 @@ IMethodHandler* Server::buildMethodHandler(Client& client , int &client_fd) {
     HttpRequest& request = client.getRequest();
     const Location &location = findLocation(client_server[client_fd], request);
     const ServerConfig& serverConfig = *client_server[client_fd];
-    return RequestHandler::handle(serverConfig, request, location);
+    return RequestHandler::handle(serverConfig, request, location, client_fd);
 }
 
 bool Server::removeMethodHandler(Client& client, HttpResponse& resp) {
@@ -146,7 +146,7 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
     std::cout << "[FD " << client_fd << "]" << " ---> " << client.getRequest().getMethod() << " " << client.getRequest().getPath() << " (" << client.getCodeResponseStatus() <<  ") - "<< client.getLenBody() << " bytes" << std::endl;
 }
 
-void Server::sendResponse(const int &client_fd, Client& client) {
+void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
     client.setResponse(resp.toString());
@@ -174,6 +174,36 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
     }
 }
 
+void Server::epoll_add(int fd, uint32_t events) {
+    struct epoll_event ev;
+    std::memset(&ev, 0, sizeof(ev));
+
+    ev.events  = events;
+    ev.data.fd = fd;
+
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, fd, &ev);
+}
+
+void Server::startCgiForClient(Client& client) {
+    
+    CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
+
+    CgiProcess* cgi = cgiHandler->startCgi();
+    
+    _cgiByFd[cgi->stdin_fd]  = cgi;
+    _cgiByFd[cgi->stdout_fd] = cgi;
+    
+    epoll_add(cgi->stdout_fd, EPOLLIN);
+    
+    if (!cgi->input.empty()) {
+        epoll_add(cgi->stdin_fd, EPOLLOUT);
+    }
+    else {
+        close(cgi->stdin_fd);
+        cgi->stdin_closed = true;
+    }
+}
+
 void Server::handleClientRequest(int client_fd) {
     
     char buffer[2048];
@@ -192,7 +222,11 @@ void Server::handleClientRequest(int client_fd) {
     client.handler->handleData(client.getRequest().getBody());
     client.eraseBody();
     if (client.handler->isFinished()) {
-        sendResponse(client_fd, client);
+        if (client.handler->isCgi()) {
+            startCgiForClient(client);
+        }
+        else
+            prepareResponse(client_fd, client);
     }
 }
 
@@ -220,6 +254,84 @@ void Server::sendResponseClient(int client_fd) {
     }
 };
 
+void Server::handleCgiWrite(int fd) {
+    CgiProcess* cgi = _cgiByFd[fd];
+
+    ssize_t n = write(fd, cgi->input.c_str(), cgi->input.size());
+    if (n > 0) {
+        cgi->input.erase(0, n);
+        if (cgi->input.empty()) {
+            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
+            close(fd);
+            cgi->stdin_closed = true;
+        }
+    }
+}
+
+void Server::finalizeCgiResponse(CgiProcess* cgi) {
+    Client& client = clients[cgi->client_fd];
+    CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
+
+    // 1️⃣ Parse CGI output → HttpResponse
+    HttpResponse& response = cgiHandler->responseHTTP(cgi->output);
+
+
+    client.setCloseConnection(response.isConnectionClose());
+    client.setCodeResponseStatus(response.getStatusResponse());
+    // send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
+    // logStatusResponse(client_fd, client);
+    // bool closeConnection = 
+    client.setResponse(response.toString());
+    removeMethodHandler(client, response);
+
+
+    // std::cout << "Resposta construida: " <<  client.getResponse() << std::endl;
+
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT; 
+    // 2️⃣ Agora o cliente pode escrever
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+
+    // 3️⃣ Cleanup
+    _cgiByFd.erase(cgi->stdin_fd);
+    _cgiByFd.erase(cgi->stdout_fd);
+    delete cgi;
+}
+
+void Server::handleCgiRead(int fd) {
+    CgiProcess* cgi = _cgiByFd[fd];
+    char buffer[4096];
+    ssize_t n = read(fd, buffer, sizeof(buffer));
+
+    // std::cout << "Acabei de ler isso: " << buffer << std::endl;
+    if (n > 0) {
+        cgi->output.append(buffer, n);
+        // std::cout << "Acabei de ler isso: \n" << cgi->output << std::endl;
+
+    }
+    else if (n == 0) {
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
+        close(fd);
+        waitpid(cgi->pid, NULL, WNOHANG);
+        finalizeCgiResponse(cgi);
+    } else {
+
+        std::cout << "Acho que deu erro" << std::endl;
+    }
+}
+
+void Server::handleCgiEvent(int fd, uint32_t ev) {
+    CgiProcess* cgi = _cgiByFd[fd];
+
+    if ((ev & EPOLLOUT) && fd == cgi->stdin_fd) {
+        handleCgiWrite(fd);
+    }
+    
+    if ((ev & (EPOLLIN | EPOLLHUP)) && fd == cgi->stdout_fd) {
+        handleCgiRead(fd);
+    }
+}
+
 void Server::eventLoop() {
     while (_running) {
         int n = epoll_wait(epoll_fd, events, 64, 1000);
@@ -229,6 +341,8 @@ void Server::eventLoop() {
 
             if (server_by_fd.count(fd)) {
                 handleNewConnection(fd);
+            } else if (_cgiByFd.count(fd)) {
+                handleCgiEvent(fd, events[i].events);
             }
             else {
                 if (events[i].events & EPOLLIN) {

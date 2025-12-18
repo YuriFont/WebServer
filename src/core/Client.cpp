@@ -89,7 +89,7 @@ epoll_event& Client::getDataEvent() {
     return this->event;
 };
 
-const int& Client::getClienteFd() {
+const int& Client::getClienteFd() const {
     return this->client_fd;
 };
 

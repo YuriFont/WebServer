@@ -31,7 +31,7 @@ class Client {
         Client& operator=(const Client& other);
         ~Client();
         epoll_event& getDataEvent();
-        const int& getClienteFd();
+        const int& getClienteFd() const;
         void setCodeResponseStatus(const std::string& status);
         const std::string& getCodeResponseStatus();
         void addBuffer(const std::string& request);
