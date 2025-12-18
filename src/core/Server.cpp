@@ -62,19 +62,22 @@ void Server::handleNewConnection(int server_fd) {
 
 const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &request) {
     const std::map<std::string, Location> &locs = serverCfg->getLocations();
-
     std::string path = request.getPath();
     std::string match = "/";
     size_t longestMatch = 0;
 
-    for (std::map<std::string, Location>::const_iterator it = locs.begin();
-         it != locs.end(); ++it)
-    {
-        if (path.compare(0, it->first.size(), it->first) == 0 &&
-            it->first.size() > longestMatch)
-        {
-            longestMatch = it->first.size();
-            match = it->first;
+    for (std::map<std::string, Location>::const_iterator it = locs.begin(); it != locs.end(); ++it) {
+        const std::string &locPath = it->first;
+
+        if (path.compare(0, locPath.size(), locPath) != 0)
+            continue;
+
+        if (path.size() > locPath.size() && locPath != "/" && path[locPath.size()] != '/')
+            continue;
+
+        if (locPath.size() > longestMatch) {
+            longestMatch = locPath.size();
+            match = locPath;
         }
     }
 
@@ -311,7 +314,10 @@ void Server::handleCgiRead(int fd) {
     }
     else if (n == 0) {
         epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
-        close(fd);
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, 0);
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
+        close(cgi->stdin_fd);
+        close(cgi->stdout_fd);
         waitpid(cgi->pid, NULL, WNOHANG);
         finalizeCgiResponse(cgi);
     } else {

@@ -4,7 +4,7 @@ RequestHandler::RequestHandler(const ServerConfig &config) : _config(config) {}
 
 bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Location &location) {
 
-        // Detecção de CGI
+    // Detecção de CGI
     std::string rawPath = request.getPath();
 
     // Remover query string
@@ -25,15 +25,16 @@ bool RequestHandler::isCgiEnabledForExtension(HttpRequest &request, const Locati
 
 IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &request, const Location &location, int client_fd)
 {
-
     std::string method = request.getMethod();
+    std::string requestExt = Utils::getExtension(request.getPath());
 
-    if (location.isCgiEnabled() && isCgiEnabledForExtension(request, location))
+    if ((location.isCgiEnabled() && isCgiEnabledForExtension(request, location)) || (config.hasGlobalCGI && config.hasExtGlobalCgi(requestExt)))
         return new CgiHandler(config, request, location, client_fd);
-        
+
     if (!location.isMethodAllowed(method)) {
         return new MethodNotAllowedHandler(location.getMethods());
     }
+
     if (!location.getRedirect().empty()) {
         return new RedirectHandler(config, request, location);
     }

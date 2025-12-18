@@ -25,6 +25,8 @@ class Config {
         void _parseLocation(std::istringstream &iss, ServerConfig &server);
         bool _IPValidation(const std::string &addressIP);
         bool _PortValidation(int addressPort);
+        bool checkGlobalCGI(const std::string &path);
+        void addGlobalCGI(ServerConfig &server, std::istringstream &iss, std::string &line);
 };
 
 #endif

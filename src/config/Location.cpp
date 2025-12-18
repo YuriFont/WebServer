@@ -50,7 +50,7 @@ const std::map<std::string, std::string>& Location::getCgi() const {
 }
 
 void Location::setPath(const std::string &p) {
-    if (p.empty() || p[0] != '/')
+    if (p.empty() || (p[0] != '/' && p[0] != '~'))
         throw std::runtime_error("Location path must start with '/'");
     _path = p;
 }

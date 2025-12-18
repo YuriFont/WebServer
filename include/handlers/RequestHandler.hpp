@@ -23,7 +23,6 @@ public:
         return this->_config;
     }
 private:
-
     static bool isCgiEnabledForExtension(HttpRequest &request, const Location &location);
     const ServerConfig &_config;
 };

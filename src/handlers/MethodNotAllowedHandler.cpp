@@ -34,6 +34,7 @@ HttpResponse& MethodNotAllowedHandler::getResponse() {
 
     _response->setStatus(405);
     _response->setHeader("Allow", _methodsAllowed);
+    _response->setConnectionClose(true);
     return *_response;
 };
  
