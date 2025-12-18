@@ -36,7 +36,10 @@ void MultipartProcessor::handleChunk(const std::string& chunk) {
     if (_bytesReceived >= _contentLength) {
         _response = new HttpResponse();
         _response->setStatus(201);
-        _response->setBody("<h2>Tudo certo</h2>");
+        _response->setBody(
+            "<h1>201 Created</h1>"
+            "<p>File uploaded successfully.</p>"
+        );
         _isFinished = true;
     }
 };

@@ -180,13 +180,20 @@ void Server::handleClientRequest(int client_fd) {
         return ;
     }
     Client& client = clients[client_fd];
+    std::string data(buffer, bytes);
     addBuffer(client, buffer, bytes);
     if (!client.isAllHeaders())
         return ;
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
-    client.handler->handleData(client.getRequest().getBody());
-    client.eraseBody();
+    if (client.isChunked()) {
+    // PASSA O BUFFER BRUTO LIDO DO SOCKET
+    client.handler->handleData(std::string(buffer, bytes));
+    } else {
+        // Content-Length normal
+        client.handler->handleData(client.getRequest().getBody());
+        client.eraseBody();
+    }
     if (client.handler->isFinished()) {
         sendResponse(client_fd, client);
     }

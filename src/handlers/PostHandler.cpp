@@ -25,6 +25,7 @@ PostHandler::~PostHandler() {
         _bodyProcessor = NULL;
     }
 };
+
 void PostHandler::handleData(const std::string& chunk) {
 
     if (_bodyProcessor == NULL) {

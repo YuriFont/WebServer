@@ -157,4 +157,5 @@ void HttpRequest::clearAllData() {
     this->_headers.erase(this->_headers.begin(), this->_headers.end());
     this->_body.erase();
     this->_queryString.erase();
+    bodyTempPath.clear();
 };

@@ -18,6 +18,7 @@ class HttpRequest {
 
     public:
 
+        std::string bodyTempPath;
         HttpRequest();
         HttpRequest(const char *buffer);
         ~HttpRequest();

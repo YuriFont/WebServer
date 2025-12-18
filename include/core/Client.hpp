@@ -14,6 +14,7 @@ class Client {
         int contentLength;
         bool isHeadersReceived;
         bool isHeadersParsed;
+        bool _isChunked;
         epoll_event event;
         HttpRequest request;
         
@@ -35,4 +36,5 @@ class Client {
         int getLenBody();
         void eraseBody();
         void cleanData();
+        bool isChunked() const;
 };

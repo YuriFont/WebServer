@@ -7,6 +7,7 @@ Client::Client(): handler(NULL)  {
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+    this->_isChunked = false;
 };
 
 Client::~Client() {
@@ -23,6 +24,7 @@ Client::Client(const int& client_fd): handler(NULL) {
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+    this->_isChunked = false;
 };
 
 Client::Client(const Client& client): handler(NULL) {
@@ -64,35 +66,50 @@ const int& Client::getClienteFd() {
     return this->client_fd;
 };
 
-void Client::addBuffer(const std::string& request) {
 
-    this->request.appendBuffer(request);
-    if (!this->isHeadersReceived) {
-        if (this->request.getBuffer().find("\r\n\r\n") != std::string::npos || this->request.getBuffer().find("\n\n") != std::string::npos) {
+void Client::addBuffer(const std::string& data) {
+    request.appendBuffer(data);
 
-            this->isHeadersReceived = true;
-            this->request.parser();
-            this->contentLength = this->request.getContentLength();
-            // std::cout << this->request.getBuffer() << std::endl;
-            // std::cout << this->request.getMethod() << " " << this->request.getPath() << " " << this->request.getHttpVersion() << std::endl;
-            this->isHeadersParsed = true;
+    // Ainda lendo headers
+    if (!isHeadersReceived) {
+        if (request.getBuffer().find("\r\n\r\n") != std::string::npos ||
+            request.getBuffer().find("\n\n")     != std::string::npos) {
+
+            isHeadersReceived = true;
+            request.parser();
+            isHeadersParsed = true;
+
+            // 🔹 Detecta Transfer-Encoding: chunked
+            std::string te = request.getHeader("Transfer-Encoding");
+            if (!te.empty() && te.find("chunked") != std::string::npos) {
+                _isChunked = true;
+                contentLength = 0; // chunked NÃO usa Content-Length
+            } else {
+                _isChunked = false;
+                contentLength = request.getContentLength();
+            }
+
+            // 🔹 Remove qualquer body que veio colado nos headers
+            request.eraseBody();
         }
     }
-};
+}
+
 
 void Client::addBody(const std::string& body) {
-
-    this->request.appendBody(body);
-};
-
-
+    // Não guarda chunked no HttpRequest
+    if (!_isChunked) {
+        this->request.appendBody(body);
+    }
+}
 
 bool Client::isAllHeaders() {
     return this->isHeadersReceived;
 }
 
 int Client::getLenBody() {
-
+    if (_isChunked)
+        return -1; // indica tamanho desconhecido
     return this->contentLength;
 }
 
@@ -102,8 +119,27 @@ HttpRequest& Client::getRequest() {
 
 void Client::cleanData() {
 
-    this->contentLength = 0;
-    this->isHeadersReceived = false;
-    this->isHeadersParsed = false;
-    this->request.clearAllData();
+    // 🔹 LIMPA ARQUIVO TEMPORÁRIO DO BODY (chunked / multipart / CGI)
+    if (!request.bodyTempPath.empty()) {
+
+        // garante que não existe handler usando o arquivo
+        if (handler != NULL) {
+            delete handler;
+            handler = NULL;
+        }
+
+        std::remove(request.bodyTempPath.c_str());
+        request.bodyTempPath.clear();
+    }
+
+    contentLength = 0;
+    isHeadersReceived = false;
+    isHeadersParsed = false;
+    _isChunked = false;
+
+    request.clearAllData();
+}
+
+bool Client::isChunked() const {
+    return _isChunked;
 }
