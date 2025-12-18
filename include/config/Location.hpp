@@ -20,6 +20,7 @@ class Location {
         bool isCgiEnabled() const;
         std::string getUploadStore() const;
         const std::map<std::string, std::string>& getCgi() const;
+        std::string getCgiGlobalExt() const;
 
         void setPath(const std::string &p);
         void setMethods(std::istringstream &iss);

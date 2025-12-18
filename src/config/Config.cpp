@@ -165,13 +165,78 @@ void Config::_parseClientMaxBodySize(std::istringstream &iss, ServerConfig &serv
     server.client_max_body_size = Utils::toSizeT(sizeStr);
 }
 
+bool Config::checkGlobalCGI(const std::string &path) {
+    if (path.size() < 5)
+        throw (std::runtime_error("Error in `cgi Global`: Invalid global CGI path"));
+
+    if (path[path.size() - 1] != '$')
+        throw (std::runtime_error("Error in `cgi Global`: Global CGI location must end with '$'"));
+
+    if (path[1] != '/' || path[2] != '.')
+        throw (std::runtime_error("Error in `cgi Global`: Invalid global CGI path"));
+
+    for (std::string::size_type i = 3; i < path.size() - 1; ++i) {
+        char c = path[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) {
+            throw (std::runtime_error("Error in `cgi Global`: Invalid global CGI path"));
+        }
+    }
+
+    return true;
+}
+
+void Config::addGlobalCGI(ServerConfig &server, std::istringstream &iss, std::string &line) {
+    int flagOfCgi = 0;
+    std::string ext = line.substr(2, line.size() - 3);
+
+    if (server.hasExtGlobalCgi(ext))
+        throw std::runtime_error("Error in global cgi block: global cgi extensions are equal");
+
+    if (!(iss >> line) || line != "{")
+        throw std::runtime_error("Expected '{' after location path in " + _filePath);
+
+    while (_getUtilLine(_file, line)) {
+        iss.clear();
+        iss.str(line);
+        iss >> line;
+        if (line == "}")
+            break;
+        else if (line == "methods")
+            server.setGlobalCgiMethods(iss, ext);
+        else if (line == "cgi") {
+            flagOfCgi++;
+            server.setGlobalCgiPath(iss, ext);
+        }
+        else
+            throw std::runtime_error("Unknown directive in global cgi block: " + line + " in " + _filePath);
+    }
+
+    if (server.extAndMethods.empty())
+        throw std::runtime_error("Error in global cgi block: global CGI need methods");
+
+    if (server.extAndPath.empty())
+        throw std::runtime_error("Error in global cgi block: global CGI need cgi key");
+    
+    if (flagOfCgi != 1)
+        throw std::runtime_error("Error in global cgi block: global CGI accept just one cgi key for location");
+
+    server.hasGlobalCGI = true;
+}
+
 void Config::_parseLocation(std::istringstream &iss, ServerConfig &server) {
     Location location;
     std::string line;
 
     if (!(iss >> line))
         throw std::runtime_error("Invalid location directive in " + _filePath);
+    
+    if (line[0] == '~' && checkGlobalCGI(line)) {
+        addGlobalCGI(server, iss, line);
+        return ;
+    }
+
     location.setPath(line);
+
     if (!(iss >> line) || line != "{")
         throw std::runtime_error("Expected '{' after location path in " + _filePath);
 

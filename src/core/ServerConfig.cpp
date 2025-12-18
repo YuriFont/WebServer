@@ -25,6 +25,8 @@ ServerConfig& ServerConfig::operator=(const ServerConfig& other) {
         this->client_max_body_size = other.client_max_body_size;
         this->socket_fd = other.socket_fd;
         this->locations = other.locations;
+        this->extAndMethods = other.extAndMethods;
+        this->extAndPath = other.extAndPath;
     }
     return *this;
 }
@@ -83,4 +85,40 @@ int ServerConfig::initSocket() {
     }
     std::cout << "Server listening on " << ip << ":" << port << std::endl;
     return socket_fd;
+}
+
+void ServerConfig::setGlobalCgiMethods(std::istringstream &iss, std::string &ext) {
+    std::string method;
+
+    while (iss >> method) {
+        if (method != "GET" && method != "POST" && method != "DELETE")
+            throw std::runtime_error("Invalid HTTP method in global cgi: " + method);
+
+        extAndMethods[ext].push_back(method);
+    }
+}
+
+void ServerConfig::setGlobalCgiPath(std::istringstream &iss, std::string &ext) {
+    std::string extension;
+    std::string scriptPath;
+    struct stat info;
+
+    iss >> extension >> scriptPath;
+    if (iss.fail() || !iss.eof() || extension.empty() || scriptPath.empty())
+        throw(std::runtime_error("Error in global `cgi`: invalid format"));
+
+    if (stat(scriptPath.c_str(), &info) != 0)
+        throw(std::runtime_error("Error in global `cgi`: " + std::string(strerror(errno))));
+
+    if (!S_ISREG(info.st_mode) || !(info.st_mode & S_IXUSR))
+        throw(std::runtime_error("Error in global `cgi`: path is not an executable file"));
+
+    if (extension != ext)
+        throw(std::runtime_error("Error in global `cgi`: extesion in cgi key is different of path extension"));
+
+    extAndPath[ext] = scriptPath;
+}
+
+bool ServerConfig::hasExtGlobalCgi(std::string &ext) const {
+    return (extAndPath.find(ext) != extAndPath.end());
 }
