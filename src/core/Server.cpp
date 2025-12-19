@@ -182,41 +182,31 @@ void Server::handleClientRequest(int client_fd) {
     Client& client = clients[client_fd];
     std::string data(buffer, bytes);
 
-    addBuffer(client, buffer, bytes);
+    // 🔹 Sempre passa o buffer cru para o Client
+    client.addBuffer(data);
 
-    if (!client.isAllHeaders())
+    // 🔹 Headers ainda não completos
+    if (!client.isAllHeaders()) {
         return;
-
-    if (client.handler == NULL)
-        client.handler = buildMethodHandler(client, client_fd);
-
-    if (client.isChunked()) {
-        // 🔹 Remove headers se ainda estiverem no buffer
-        static bool headersSkipped = false;
-
-        if (!headersSkipped) {
-            size_t pos = data.find("\r\n\r\n");
-            if (pos == std::string::npos) {
-                return;
-            }
-            data = data.substr(pos + 4);
-            headersSkipped = true;
-        }
-
-        if (!data.empty())
-            client.handler->handleData(data);
-
-    } else {
-        client.handler->handleData(client.getRequest().getBody());
-        client.eraseBody();
     }
 
+    // 🔹 Cria handler uma única vez
+    if (client.handler == NULL) {
+        client.handler = buildMethodHandler(client, client_fd);
+    }
+
+    // 🔥 SEMPRE streamar o body (chunked ou não)
+    std::string bodyChunk = client.consumeBodyChunk();
+
+    if (!bodyChunk.empty()) {
+        client.handler->handleData(bodyChunk);
+    }
+
+    // 🔹 Handler decidiu que terminou
     if (client.handler->isFinished()) {
         sendResponse(client_fd, client);
-        return;
     }
 }
-
 
 void Server::eventLoop() {
     while (_running) {

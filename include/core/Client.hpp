@@ -18,7 +18,6 @@ class Client {
         epoll_event event;
         HttpRequest request;
         
-        
     public:
         
         IMethodHandler* handler;
@@ -37,4 +36,5 @@ class Client {
         void eraseBody();
         void cleanData();
         bool isChunked() const;
+        std::string consumeBodyChunk();
 };

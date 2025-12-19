@@ -143,3 +143,7 @@ void Client::cleanData() {
 bool Client::isChunked() const {
     return _isChunked;
 }
+
+std::string Client::consumeBodyChunk() {
+    return request.consumeBodyChunk();
+}

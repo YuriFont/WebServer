@@ -159,3 +159,33 @@ void HttpRequest::clearAllData() {
     this->_queryString.erase();
     bodyTempPath.clear();
 };
+
+std::string HttpRequest::consumeBodyChunk() {
+
+    std::string out;
+
+    // Headers ainda não completos
+    size_t headerEnd = _buffer.find("\r\n\r\n");
+    size_t sepSize = 4;
+
+    if (headerEnd == std::string::npos) {
+        headerEnd = _buffer.find("\n\n");
+        sepSize = 2;
+    }
+
+    if (headerEnd == std::string::npos)
+        return "";
+
+    size_t bodyStart = headerEnd + sepSize;
+
+    if (_buffer.size() <= bodyStart)
+        return "";
+
+    // 🔥 Extrai somente o body
+    out = _buffer.substr(bodyStart);
+
+    // 🔥 Remove o body do buffer, mantém headers
+    _buffer.erase(bodyStart);
+
+    return out;
+}
