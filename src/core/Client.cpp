@@ -7,6 +7,7 @@ Client::Client(): handler(NULL)  {
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+    this->_isChunked = false;
 };
 
 Client::~Client() {
@@ -23,6 +24,7 @@ Client::Client(const int& client_fd): handler(NULL) {
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+    this->_isChunked = false;
 };
 
 Client::Client(const Client& client): handler(NULL) {
@@ -44,6 +46,7 @@ Client& Client::operator=(const Client& other) {
         this->isHeadersReceived = other.isHeadersReceived;
         this->isHeadersParsed = other.isHeadersParsed;
         this->event = other.event;
+        this->_isChunked = other._isChunked;
         this->request = other.request;
         if (other.handler != NULL) {
             this->handler = other.handler->clone();
@@ -106,4 +109,12 @@ void Client::cleanData() {
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
     this->request.clearAllData();
+}
+
+void Client::setChunked(bool value){
+    _isChunked = value;
+}
+
+bool Client::isChunked() const {
+    return _isChunked;
 }

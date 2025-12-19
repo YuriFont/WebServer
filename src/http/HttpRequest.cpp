@@ -158,3 +158,8 @@ void HttpRequest::clearAllData() {
     this->_body.erase();
     this->_queryString.erase();
 };
+
+bool HttpRequest::isChunked() const {
+    std::string te = Utils::toLower(getHeader("Transfer-Encoding"));
+    return te.find("chunked") != std::string::npos;
+}

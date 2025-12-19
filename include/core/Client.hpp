@@ -14,9 +14,10 @@ class Client {
         int contentLength;
         bool isHeadersReceived;
         bool isHeadersParsed;
+        bool _isChunked;
         epoll_event event;
         HttpRequest request;
-        
+        ChunkedDecoder _chunkedDecoder;
         
     public:
         
@@ -35,4 +36,6 @@ class Client {
         int getLenBody();
         void eraseBody();
         void cleanData();
+        void setChunked(bool value);
+        bool isChunked() const;
 };

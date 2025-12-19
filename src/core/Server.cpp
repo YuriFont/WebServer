@@ -160,13 +160,52 @@ void Server::sendResponse(const int &client_fd, Client& client) {
 
 void Server::addBuffer(Client& client, char* buffer, int& bytes) {
 
+    // Enquanto os headers ainda NÃO foram totalmente recebidos
     if (!client.isAllHeaders()) {
+
+        // Acumula dados no buffer interno do Client
+        // Aqui ainda estamos lendo APENAS headers HTTP
         client.addBuffer(std::string(buffer, bytes));
+
+        // Se após adicionar esse bloco os headers ficaram completos
         if (client.isAllHeaders()) {
+
+            // Loga a requisição assim que headers completos existem
             logClienteRequest(client.getClienteFd(), client);
+
+            // Verifica se o framing do corpo é chunked
+            if (client.getRequest().isChunked()) {
+
+                // Marca o Client como chunked
+                // Chunked é ESTADO, não uma decisão pontual
+                client.setChunked(true);
+
+                // Inicializa o decoder de chunked
+                // Esse decoder será responsável por:
+                //  - Ler tamanhos hexadecimais
+                //  - Concatenar os chunks
+                //  - Detectar o chunk final (0\r\n\r\n)
+                client.initChunkedDecoder(); // se existir
+            }
         }
-    } else {
-        client.addBody(std::string(buffer, bytes));
+    } 
+    else {
+        // Headers já foram lidos → agora estamos lidando com o BODY
+
+        // Se a requisição usa Transfer-Encoding: chunked
+        if (client.isChunked()) {
+
+            // Alimenta o decoder de chunked com dados do socket
+            // O decoder decide quando o corpo está completo
+            // O handler NÃO deve ver chunk framing ex: 4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n
+            client.feedChunked(buffer, bytes);
+
+        } else {
+
+            // Corpo normal (Content-Length)
+            // Aqui o body é acumulado diretamente
+            client.addBody(std::string(buffer, bytes));
+        }
     }
 }
 
@@ -185,6 +224,12 @@ void Server::handleClientRequest(int client_fd) {
         return ;
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
+    //é chunked ou não
+    //já trata o chunked aqui
+    // se for ele manda o corpo já tratado, se não manda da forma que ta
+    //no cliente vai precisar saber a quantidade de caracteres que ele ta contando
+    //vai guardando os status do que ele ta fazendo
+    //manda o cliente pra classe do chunked e altera o estado do que o cliente ta fazendo e retorna a string 
     client.handler->handleData(client.getRequest().getBody());
     client.eraseBody();
     if (client.handler->isFinished()) {

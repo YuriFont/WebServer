@@ -36,4 +36,5 @@ class HttpRequest {
         void parser();
         void reserveSpaceBody(size_t size);
         void eraseBody();
+        bool isChunked() const;
 };

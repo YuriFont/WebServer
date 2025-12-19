@@ -223,3 +223,13 @@ std::string Utils::getExtension(const std::string &path) {
 
     return path2.substr(dot);
 }
+
+std::string Utils::toLower(const std::string& str){
+    std::string out = str;
+    for(size_t i = 0; i < out.size(); ++i){
+        // cast para unsigned char
+        // sem isso, std::tolower tem comportamento indefinido
+        out[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(out[i])));
+    }
+    return out;
+}
