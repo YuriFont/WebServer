@@ -182,31 +182,58 @@ void Server::handleClientRequest(int client_fd) {
     Client& client = clients[client_fd];
     std::string data(buffer, bytes);
 
-    // 🔹 Sempre passa o buffer cru para o Client
+    // Sempre passa o buffer cru
     client.addBuffer(data);
 
-    // 🔹 Headers ainda não completos
-    if (!client.isAllHeaders()) {
+    // Headers ainda não completos
+    if (!client.isAllHeaders())
         return;
-    }
 
-    // 🔹 Cria handler uma única vez
+    // Cria handler uma única vez
     if (client.handler == NULL) {
         client.handler = buildMethodHandler(client, client_fd);
     }
 
-    // 🔥 SEMPRE streamar o body (chunked ou não)
-    std::string bodyChunk = client.consumeBodyChunk();
+    /* =====================================================
+     *  CHUNKED → stream contínuo
+     * ===================================================== */
+    if (client.isChunked()) {
 
-    if (!bodyChunk.empty()) {
-        client.handler->handleData(bodyChunk);
+        std::string chunk = client.consumeBodyChunk();
+        if (!chunk.empty()) {
+            client.handler->handleData(chunk);
+        }
+
+    }
+    /* =====================================================
+     *  CONTENT-LENGTH
+     * ===================================================== */
+    else {
+
+        size_t have = client.getRequest().getBody().size();
+        size_t need = client.getLenBody();
+
+        // Caso sem body (DELETE, GET, etc.)
+        if (need == 0) {
+            client.handler->handleData("");
+        }
+        // Ainda não recebeu tudo
+        else if (have < need) {
+            return;
+        }
+        // Body completo
+        else {
+            client.handler->handleData(client.getRequest().getBody());
+            client.eraseBody();
+        }
     }
 
-    // 🔹 Handler decidiu que terminou
+    // Handler finalizou → envia resposta
     if (client.handler->isFinished()) {
         sendResponse(client_fd, client);
     }
 }
+
 
 void Server::eventLoop() {
     while (_running) {
