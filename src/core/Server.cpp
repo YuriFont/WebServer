@@ -20,15 +20,18 @@ Server::~Server() {
     }
 
     for (std::map<int, CgiProcess *>::iterator it = _cgiByFd.begin(); it != _cgiByFd.end(); ++it) {
-        if (!it->second->stdin_closed) {
-            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, it->second->stdin_fd, NULL);
-            close(it->second->stdin_fd);
-        }
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, it->second->stdout_fd, NULL);
-        close(it->second->stdout_fd);
-        delete it->second;
-    }
 
+        CgiProcess* cgi = it->second;
+        if (!cgi->stdin_closed) {
+            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, NULL);
+            close(cgi->stdin_fd);
+        }
+        if (!cgi->stdout_closed) {
+            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, NULL);
+            close(cgi->stdout_fd);
+        }
+        delete cgi;
+    }
     close(epoll_fd);
 }
 
@@ -198,26 +201,6 @@ void Server::epoll_add(int fd, uint32_t events) {
     epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, fd, &ev);
 }
 
-void Server::startCgiForClient(Client& client) {
-    
-    CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
-
-    CgiProcess* cgi = cgiHandler->startCgi();
-    
-    _cgiByFd[cgi->stdin_fd]  = cgi;
-    _cgiByFd[cgi->stdout_fd] = cgi;
-    
-    epoll_add(cgi->stdout_fd, EPOLLIN);
-    
-    if (!cgi->input.empty()) {
-        epoll_add(cgi->stdin_fd, EPOLLOUT);
-    }
-    else {
-        close(cgi->stdin_fd);
-        cgi->stdin_closed = true;
-    }
-}
-
 void Server::handleClientRequest(int client_fd) {
     
     char buffer[2048];
@@ -264,6 +247,7 @@ void Server::sendResponseClient(int client_fd) {
         epoll_event& event = client.getDataEvent();
         event.events = EPOLLIN;
         epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
+
         removeMethodHandler(client);
         finalizeClientConnection(client_fd, client, client.getCloseConnection());
     }
@@ -276,10 +260,39 @@ void Server::handleCgiWrite(int fd) {
     if (n > 0) {
         cgi->input.erase(0, n);
         if (cgi->input.empty()) {
-            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
-            close(fd);
-            cgi->stdin_closed = true;
+            if (!cgi->stdin_closed) {
+                epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
+                close(fd);
+                cgi->stdin_closed = true;
+                _cgiByFd.erase(cgi->stdin_fd);
+
+            }
         }
+    }
+}
+
+
+void Server::startCgiForClient(Client& client) {
+    
+    CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
+
+    CgiProcess* cgi = cgiHandler->startCgi();
+    
+    if (_cgiByFd.find(cgi->stdin_fd) != _cgiByFd.end() || _cgiByFd.find(cgi->stdout_fd) != _cgiByFd.end()) {
+        std::cout << "Pipe já registrado =================================" << std::endl;
+    }
+    _cgiByFd[cgi->stdin_fd]  = cgi;
+    _cgiByFd[cgi->stdout_fd] = cgi;
+    
+    epoll_add(cgi->stdout_fd, EPOLLIN);
+    
+    if (!cgi->input.empty()) {
+        epoll_add(cgi->stdin_fd, EPOLLOUT);
+    }
+    else {
+        close(cgi->stdin_fd);
+        cgi->stdin_closed = true;
+        _cgiByFd.erase(cgi->stdin_fd);
     }
 }
 
@@ -287,10 +300,17 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
 
     if (clients.find(cgi->client_fd) == clients.end()) {
         std::cerr << "Erro: CGI finalizou, mas o cliente (fd " << cgi->client_fd << ") já desconectou." << std::endl;
-        
+        if (!cgi->stdin_closed) {
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, 0);
+            close(cgi->stdin_fd);
+            _cgiByFd.erase(cgi->stdin_fd);
+        }
+        if (!cgi->stdout_closed) {
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
+            close(cgi->stdout_fd);
+            _cgiByFd.erase(cgi->stdout_fd);
+        }
         // Limpeza dos recursos do CGI, já que não temos pra quem mandar a resposta
-        _cgiByFd.erase(cgi->stdin_fd);
-        _cgiByFd.erase(cgi->stdout_fd);
         delete cgi;
         return;
     }
@@ -299,10 +319,19 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
 
     if (client.handler == NULL) {
         std::cerr << "Erro: Cliente existe, mas o handler é NULL." << std::endl;
-        
+        if (!cgi->stdin_closed) {
+            cgi->stdin_closed = true;
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, 0);
+            close(cgi->stdin_fd);
+            _cgiByFd.erase(cgi->stdin_fd);
+        }
+        if (!cgi->stdout_closed) {
+            cgi->stdout_closed = true;
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
+            close(cgi->stdout_fd);
+            _cgiByFd.erase(cgi->stdout_fd);
+        }
         // Limpeza
-        _cgiByFd.erase(cgi->stdin_fd);
-        _cgiByFd.erase(cgi->stdout_fd);
         delete cgi;
         return;
     }
@@ -330,8 +359,18 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
     epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
 
     // 3️⃣ Cleanup
-    _cgiByFd.erase(cgi->stdin_fd);
-    _cgiByFd.erase(cgi->stdout_fd);
+    if (!cgi->stdin_closed) {
+        cgi->stdin_closed = true;
+        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, 0);
+        close(cgi->stdin_fd);
+        _cgiByFd.erase(cgi->stdin_fd);
+    }
+    if (!cgi->stdout_closed) {
+        cgi->stdout_closed = true;
+        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
+        close(cgi->stdout_fd);
+        _cgiByFd.erase(cgi->stdout_fd);
+    }
     delete cgi;
 }
 
@@ -347,26 +386,36 @@ void Server::handleCgiRead(int fd) {
 
     }
     else if (n == 0) {
-        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, 0);
-        close(fd);
         if (!cgi->stdin_closed) {
-            close(cgi->stdin_fd);
             cgi->stdin_closed = true;
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, 0);
+            close(cgi->stdin_fd);
+            _cgiByFd.erase(cgi->stdin_fd);
+        }
+        if (!cgi->stdout_closed) {
+            cgi->stdout_closed = true;
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
+            close(cgi->stdout_fd);
+            _cgiByFd.erase(cgi->stdout_fd);
         }
         waitpid(cgi->pid, NULL, 0);
         finalizeCgiResponse(cgi);
     } else {
         
         std::cout << "Acho que deu erro" << std::endl;
-        _cgiByFd.erase(cgi->stdin_fd);
-        _cgiByFd.erase(cgi->stdout_fd);
         if (!cgi->stdin_closed) {
+            cgi->stdin_closed = true;
             epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, 0);
             close(cgi->stdin_fd);
+            _cgiByFd.erase(cgi->stdin_fd);
         }
-        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
-        close(cgi->stdout_fd);
-        //cliente também
+        if (!cgi->stdout_closed) {
+            cgi->stdout_closed = true;
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
+            close(cgi->stdout_fd);
+            _cgiByFd.erase(cgi->stdout_fd);
+        }
+        //remover cliente também ?
         delete cgi;
     }
 }

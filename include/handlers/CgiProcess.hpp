@@ -13,6 +13,7 @@ struct CgiProcess {
     std::string input;
     std::string output;
 
+    bool stdout_closed;
     bool stdin_closed;
 
     CgiProcess()
@@ -20,6 +21,7 @@ struct CgiProcess {
           stdout_fd(-1),
           pid(-1),
           client_fd(-1),
+          stdout_closed(false),
           stdin_closed(false) {}
 };
 

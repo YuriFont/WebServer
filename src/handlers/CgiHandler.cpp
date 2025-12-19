@@ -208,11 +208,8 @@ CgiProcess* CgiHandler::startCgi(){
 
     std::string path = Utils::buildPathRequisition(_location.getPath(), _location.getRoot(), _request.getPath());
     std::string extension = getExtensionCgi();
-    // std::string interpreter = _location.getCgiPathForExtension(extension);
-// HttpResponse& CgiHandler::process(const HttpRequest &request, const Location &location, std::string extension) {
     std::string interpreter;
-    // std::string path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
-    // std::string requestExt = Utils::getExtension(request.getPath());
+
 
     if (_config.hasGlobalCGI && _config.hasExtGlobalCgi(extension))
         interpreter = _config.extAndPath.find(extension)->second;
@@ -247,23 +244,4 @@ CgiProcess* CgiHandler::startCgi(){
 
     return cgi;
 
-    // //Envia o corpo do POST (se houver)
-    // if (request.getMethod() == "POST" && !_body.empty()) {
-    //     int bytes = write(inPipe[1], _body.c_str(), _body.size());
-    //     if (bytes <= -1) {
-
-    //         // exceção ou retorna erro ?
-    //         std::cout << "Erro on wirite in pipe" << std::endl;
-    //     }
-
-    // }
-    // close(inPipe[1]);
-
-    // //Lê saída do CGI
-    // std::string output = readCgiOutput(outPipe, pid);
-
-    // //Monta a resposta HTTP
-    // HttpResponse& response = responseHTTP(output);
-
-    // return response;
 }
