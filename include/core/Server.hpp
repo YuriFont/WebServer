@@ -40,7 +40,7 @@ class Server {
         void addBuffer(Client& client, char* buffer, int& bytes);
         IMethodHandler* buildMethodHandler(Client& client, int &client_fd);
         void prepareResponse(const int &client_fd, Client& client);
-        bool removeMethodHandler(Client& client, HttpResponse& resp);
+        bool removeMethodHandler(Client& client);
         void finalizeClientConnection(const int &client_fd, Client& client, const bool& closeConnection);
         void logStatusResponse(const int &client_fd, Client& client);
         void logClientDesconected(const int &client_fd);

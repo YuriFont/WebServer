@@ -33,6 +33,7 @@ void CgiHandler::handleData(const std::string& chunk) {
 
     _body.append(chunk);
     if ((int)_body.size() == _request.getContentLength()) {
+        std::cout << "body size: " << _body.size() << " Request length: " << _request.getContentLength() << std::endl;
         _isFinish = true;
     }
 };

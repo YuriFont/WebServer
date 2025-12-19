@@ -19,6 +19,16 @@ Server::~Server() {
         close(it->first);
     }
 
+    for (std::map<int, CgiProcess *>::iterator it = _cgiByFd.begin(); it != _cgiByFd.end(); ++it) {
+        if (!it->second->stdin_closed) {
+            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, it->second->stdin_fd, NULL);
+            close(it->second->stdin_fd);
+        }
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, it->second->stdout_fd, NULL);
+        close(it->second->stdout_fd);
+        delete it->second;
+    }
+
     close(epoll_fd);
 }
 
@@ -94,10 +104,14 @@ void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize
     
     bytes = recv(client_fd, buffer, bufSize, 0);
 
-    if (bytes <= 0) {
+    // tratar buffer
+    if (bytes > 0) {
+        return ;
+    }
+    else {
+        //erro de leitura no socket
         removeClient(client_fd);
         logClientDesconected(client_fd);
-        // std::cout << "Client disconnected." << std::endl;
     }
 }
 
@@ -109,14 +123,14 @@ IMethodHandler* Server::buildMethodHandler(Client& client , int &client_fd) {
     return RequestHandler::handle(serverConfig, request, location, client_fd);
 }
 
-bool Server::removeMethodHandler(Client& client, HttpResponse& resp) {
+bool Server::removeMethodHandler(Client& client) {
     
-    bool closeConnection = resp.isConnectionClose();
-    
-    delete client.handler;
-    client.handler = NULL;
-    
-    return closeConnection;
+    if (client.handler) {
+        delete client.handler;
+        client.handler = NULL;
+    }
+
+    return true;
 }
 
 void Server::finalizeClientConnection(const int &client_fd, Client& client, const bool& closeConnection) {
@@ -155,10 +169,7 @@ void Server::prepareResponse(const int &client_fd, Client& client) {
     client.setResponse(resp.toString());
     client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
-    // send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
-    // logStatusResponse(client_fd, client);
-    // bool closeConnection = 
-    removeMethodHandler(client, resp);
+
     epoll_event& event = client.getDataEvent();
     event.events = EPOLLOUT;
     epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
@@ -253,6 +264,7 @@ void Server::sendResponseClient(int client_fd) {
         epoll_event& event = client.getDataEvent();
         event.events = EPOLLIN;
         epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
+        removeMethodHandler(client);
         finalizeClientConnection(client_fd, client, client.getCloseConnection());
     }
 };
@@ -272,11 +284,33 @@ void Server::handleCgiWrite(int fd) {
 }
 
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
+
+    if (clients.find(cgi->client_fd) == clients.end()) {
+        std::cerr << "Erro: CGI finalizou, mas o cliente (fd " << cgi->client_fd << ") já desconectou." << std::endl;
+        
+        // Limpeza dos recursos do CGI, já que não temos pra quem mandar a resposta
+        _cgiByFd.erase(cgi->stdin_fd);
+        _cgiByFd.erase(cgi->stdout_fd);
+        delete cgi;
+        return;
+    }
+
     Client& client = clients[cgi->client_fd];
+
+    if (client.handler == NULL) {
+        std::cerr << "Erro: Cliente existe, mas o handler é NULL." << std::endl;
+        
+        // Limpeza
+        _cgiByFd.erase(cgi->stdin_fd);
+        _cgiByFd.erase(cgi->stdout_fd);
+        delete cgi;
+        return;
+    }
+
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
 
     // 1️⃣ Parse CGI output → HttpResponse
-    HttpResponse& response = cgiHandler->responseHTTP(cgi->output);
+    HttpResponse response = cgiHandler->responseHTTP(cgi->output);
 
 
     client.setCloseConnection(response.isConnectionClose());
@@ -285,7 +319,7 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
     // logStatusResponse(client_fd, client);
     // bool closeConnection = 
     client.setResponse(response.toString());
-    removeMethodHandler(client, response);
+    // removeMethodHandler(client, response);
 
 
     // std::cout << "Resposta construida: " <<  client.getResponse() << std::endl;
@@ -313,16 +347,27 @@ void Server::handleCgiRead(int fd) {
 
     }
     else if (n == 0) {
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, 0);
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
-        close(cgi->stdin_fd);
-        close(cgi->stdout_fd);
-        waitpid(cgi->pid, NULL, WNOHANG);
+        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, 0);
+        close(fd);
+        if (!cgi->stdin_closed) {
+            close(cgi->stdin_fd);
+            cgi->stdin_closed = true;
+        }
+        waitpid(cgi->pid, NULL, 0);
         finalizeCgiResponse(cgi);
     } else {
-
+        
         std::cout << "Acho que deu erro" << std::endl;
+        _cgiByFd.erase(cgi->stdin_fd);
+        _cgiByFd.erase(cgi->stdout_fd);
+        if (!cgi->stdin_closed) {
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, 0);
+            close(cgi->stdin_fd);
+        }
+        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, 0);
+        close(cgi->stdout_fd);
+        //cliente também
+        delete cgi;
     }
 }
 
@@ -366,7 +411,13 @@ void Server::shutdown() {
     _running = false;
 }
 
+void signalHandler(int signum) {
+    (void)signum;
+    waitpid(-1, NULL, WNOHANG);
+}
+
 void Server::start() {
+    signal(SIGCHLD, signalHandler);
     initAllSockets();
     registerSocketsInEpoll();
     eventLoop();
