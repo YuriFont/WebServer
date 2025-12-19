@@ -2,7 +2,10 @@
 
 #include <fstream>
 #include <string>
+
 #include "../abstracts/ABodyProcessor.hpp"
+#include "../config/Location.hpp"
+#include "../http/HttpRequest.hpp"
 
 class ChunkedBodyProcessor : public ABodyProcessor {
 
@@ -32,12 +35,26 @@ private:
         ERROR
     };
 
-    State       _state;
-    std::string _buffer;
+    enum ErrorReason {
+        NO_ERROR,
+        BAD_CHUNK_FORMAT,     // 400
+        BODY_TOO_LARGE,       // 413
+        FILE_IO_ERROR         // 500 (opcional, mas faz sentido)
+    };
 
-    size_t      _currentChunkSize;
-    size_t      _bytesReadInChunk;
-    size_t      _totalBytes;
+private:
+    bool openTempFile(const Location& location, const HttpRequest& request);
+    bool parseHexSizeLine(const std::string& hexLine, size_t& outSize);
+
+private:
+    State        _state;
+    ErrorReason  _error;
+
+    std::string  _buffer;
+
+    size_t       _currentChunkSize;
+    size_t       _bytesReadInChunk;
+    size_t       _totalBytes;
 
     std::ofstream _file;
     std::string   _filePath;

@@ -171,33 +171,52 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
 }
 
 void Server::handleClientRequest(int client_fd) {
-    
+
     char buffer[2048];
     int bytes = 0;
 
     readClientBuffer(client_fd, buffer, sizeof(buffer), bytes);
-    if (bytes <= 0) {
-        return ;
-    }
+    if (bytes <= 0)
+        return;
+
     Client& client = clients[client_fd];
     std::string data(buffer, bytes);
+
     addBuffer(client, buffer, bytes);
+
     if (!client.isAllHeaders())
-        return ;
+        return;
+
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
+
     if (client.isChunked()) {
-    // PASSA O BUFFER BRUTO LIDO DO SOCKET
-    client.handler->handleData(std::string(buffer, bytes));
+        // 🔹 Remove headers se ainda estiverem no buffer
+        static bool headersSkipped = false;
+
+        if (!headersSkipped) {
+            size_t pos = data.find("\r\n\r\n");
+            if (pos == std::string::npos) {
+                return;
+            }
+            data = data.substr(pos + 4);
+            headersSkipped = true;
+        }
+
+        if (!data.empty())
+            client.handler->handleData(data);
+
     } else {
-        // Content-Length normal
         client.handler->handleData(client.getRequest().getBody());
         client.eraseBody();
     }
+
     if (client.handler->isFinished()) {
         sendResponse(client_fd, client);
+        return;
     }
 }
+
 
 void Server::eventLoop() {
     while (_running) {
