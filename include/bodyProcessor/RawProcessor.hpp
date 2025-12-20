@@ -11,8 +11,6 @@
 
 
 class RawProcessor : public ABodyProcessor {
-
-    
     private:
         RawProcessor();
         const Location& _location;

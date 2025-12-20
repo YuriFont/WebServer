@@ -5,6 +5,7 @@
 
 #include "../http/HttpRequest.hpp"
 #include "../interfaces/IMethodHandler.hpp"
+#include "../bodyProcessor/ChunkedDecoder.hpp"
 
 class Client {
 
@@ -15,6 +16,7 @@ class Client {
         bool isHeadersReceived;
         bool isHeadersParsed;
         bool _isChunked;
+        bool _bodyDelivered;
         epoll_event event;
         HttpRequest request;
         ChunkedDecoder _chunkedDecoder;
@@ -38,4 +40,11 @@ class Client {
         void cleanData();
         void setChunked(bool value);
         bool isChunked() const;
+        void initChunkedDecoder();
+        void feedChunked(const char* data, size_t len);
+        bool isChunkedFinished() const;
+        const std::string& getChunkedBody() const;
+        std::string extractBodyAfterHeaders();
+        bool hasDeliveredBody() const;
+        void markBodyDelivered();
 };

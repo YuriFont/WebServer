@@ -162,16 +162,17 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
 
     // Enquanto os headers ainda NÃO foram totalmente recebidos
     if (!client.isAllHeaders()) {
-
         // Acumula dados no buffer interno do Client
         // Aqui ainda estamos lendo APENAS headers HTTP
         client.addBuffer(std::string(buffer, bytes));
 
         // Se após adicionar esse bloco os headers ficaram completos
         if (client.isAllHeaders()) {
-
             // Loga a requisição assim que headers completos existem
             logClienteRequest(client.getClienteFd(), client);
+
+            // Recupera o body que veio junto com os headers
+            std::string remainingBody = client.extractBodyAfterHeaders();
 
             // Verifica se o framing do corpo é chunked
             if (client.getRequest().isChunked()) {
@@ -186,6 +187,20 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
                 //  - Concatenar os chunks
                 //  - Detectar o chunk final (0\r\n\r\n)
                 client.initChunkedDecoder(); // se existir
+
+                //alimenta o decoder com o resto
+                if (!remainingBody.empty()) {
+                    client.feedChunked(
+                        remainingBody.c_str(),
+                        remainingBody.size()
+                    );
+                }
+
+            } else {
+                // Content-Length normal
+                if (!remainingBody.empty()) {
+                    client.addBody(remainingBody);
+                }
             }
         }
     } 
@@ -193,15 +208,13 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
         // Headers já foram lidos → agora estamos lidando com o BODY
 
         // Se a requisição usa Transfer-Encoding: chunked
-        if (client.isChunked()) {
+        if (client.isChunked() && !client.isChunkedFinished()) {
 
             // Alimenta o decoder de chunked com dados do socket
             // O decoder decide quando o corpo está completo
             // O handler NÃO deve ver chunk framing ex: 4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n
             client.feedChunked(buffer, bytes);
-
         } else {
-
             // Corpo normal (Content-Length)
             // Aqui o body é acumulado diretamente
             client.addBody(std::string(buffer, bytes));
@@ -224,14 +237,20 @@ void Server::handleClientRequest(int client_fd) {
         return ;
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
-    //é chunked ou não
-    //já trata o chunked aqui
-    // se for ele manda o corpo já tratado, se não manda da forma que ta
-    //no cliente vai precisar saber a quantidade de caracteres que ele ta contando
-    //vai guardando os status do que ele ta fazendo
-    //manda o cliente pra classe do chunked e altera o estado do que o cliente ta fazendo e retorna a string 
-    client.handler->handleData(client.getRequest().getBody());
-    client.eraseBody();
+    if (client.isChunked()){
+        if(!client.isChunkedFinished())
+            return;
+        if (!client.hasDeliveredBody()){
+            client.getRequest().setBody(client.getChunkedBody());
+            client.handler->handleData(client.getRequest().getBody());
+            client.markBodyDelivered();
+            client.eraseBody();
+        }
+    }
+    else {
+        client.handler->handleData(client.getRequest().getBody());
+        client.eraseBody();
+    }
     if (client.handler->isFinished()) {
         sendResponse(client_fd, client);
     }

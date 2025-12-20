@@ -122,6 +122,10 @@ const std::string& HttpRequest::getBody() const {
     return this->_body;
 };
 
+void HttpRequest::setBody(const std::string& body) {
+    _body = body;
+}
+
 const std::string& HttpRequest::getQueryString() const {
     return this->_queryString;
 };
@@ -162,4 +166,20 @@ void HttpRequest::clearAllData() {
 bool HttpRequest::isChunked() const {
     std::string te = Utils::toLower(getHeader("Transfer-Encoding"));
     return te.find("chunked") != std::string::npos;
+}
+
+std::string HttpRequest::extractBodyAfterHeaders() {
+    size_t pos = _buffer.find("\r\n\r\n");
+    if (pos == std::string::npos)
+        return "";
+
+    size_t bodyStart = pos + 4;
+
+    // Tudo depois dos headers já é body
+    std::string body = _buffer.substr(bodyStart);
+
+    // Mantém no buffer apenas os headers
+    _buffer.erase(bodyStart);
+
+    return body;
 }

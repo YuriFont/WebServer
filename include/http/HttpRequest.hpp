@@ -27,6 +27,7 @@ class HttpRequest {
         const std::string& getHttpVersion() const;
         const std::string& getHeader(const std::string &key) const;
         const std::string& getBody() const;
+        void setBody(const std::string& body);
         const std::string& getQueryString() const;
         const std::string& getBuffer() const;
         int getContentLength() const;
@@ -37,4 +38,5 @@ class HttpRequest {
         void reserveSpaceBody(size_t size);
         void eraseBody();
         bool isChunked() const;
+        std::string extractBodyAfterHeaders();
 };
