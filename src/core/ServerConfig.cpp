@@ -25,6 +25,7 @@ ServerConfig& ServerConfig::operator=(const ServerConfig& other) {
         this->client_max_body_size = other.client_max_body_size;
         this->socket_fd = other.socket_fd;
         this->locations = other.locations;
+        this->hasGlobalCGI = other.hasGlobalCGI;
         this->extAndMethods = other.extAndMethods;
         this->extAndPath = other.extAndPath;
     }

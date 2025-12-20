@@ -6,6 +6,7 @@
 #include <sys/epoll.h>
 #include "../http/HttpStatus.hpp"
 #include "Client.hpp"
+#include "../handlers/CgiProcess.hpp"
 
 class HttpRequest;
 
@@ -24,11 +25,13 @@ class Server {
         std::map<int, ServerConfig> server_by_fd;
         std::map<int, ServerConfig*> client_server;
         std::map<int, Client> clients;
+        std::map<int, CgiProcess*> _cgiByFd;
         bool _running;
         
         void initAllSockets();
         void registerSocketsInEpoll();
         void handleNewConnection(int server_fd);
+        void sendResponseClient(int client_fd);
         void handleClientRequest(int client_fd);
         const Location &findLocation(ServerConfig *serverCfg, HttpRequest &request);
         void eventLoop();
@@ -36,13 +39,22 @@ class Server {
         void readClientBuffer(const int& client_fd, char* buffer, size_t bufSize, int& bytes);
         void addBuffer(Client& client, char* buffer, int& bytes);
         IMethodHandler* buildMethodHandler(Client& client, int &client_fd);
-        void sendResponse(const int &client_fd, Client& client);
-        bool removeMethodHandler(Client& client, HttpResponse& resp);
+        void prepareResponse(const int &client_fd, Client& client);
+        bool removeMethodHandler(Client& client);
         void finalizeClientConnection(const int &client_fd, Client& client, const bool& closeConnection);
-        void logStatusResponse(const int &client_fd, Client& client, HttpResponse& resp);
+        void logStatusResponse(const int &client_fd, Client& client);
         void logClientDesconected(const int &client_fd);
         void logClienteConected(const int &client_fd);
         void logClienteRequest(const int &client_fd, Client& client);
+
+        void epoll_add(int fd, uint32_t events);
+        void finalizeCgiResponse(CgiProcess* cgi);
+        
+        void startCgiForClient(Client& client);
+        void handleCgiEvent(int fd, uint32_t ev);
+        void handleCgiWrite(int fd);
+        void handleCgiRead(int fd);
+        void removeCgiFd(const int& fd);
 };
 
 #endif

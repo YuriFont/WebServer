@@ -11,4 +11,5 @@ class IMethodHandler {
         virtual bool isFinished() = 0;
         virtual HttpResponse& getResponse() = 0;
         virtual IMethodHandler* clone() const = 0;
+        virtual bool isCgi() const { return false; };
 };
