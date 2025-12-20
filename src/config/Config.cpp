@@ -96,6 +96,8 @@ void Config::_parseListen(std::istringstream &iss, ServerConfig &server) {
         throw std::runtime_error("Invalid IP address: " + addressIP + " in " + _filePath);
     if (!_PortValidation(addressPort))
         throw std::runtime_error("Invalid port number: " + Utils::toString(addressPort) + " in " + _filePath);
+    if (!_repeatedPortValidation(addressPort))
+        throw std::runtime_error("This door is already in use: " + Utils::toString(addressPort) + " in " + _filePath);
 
     server.ip = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
     server.port = addressPort;
@@ -136,6 +138,14 @@ bool Config::_IPValidation(const std::string &addressIP) {
 bool Config::_PortValidation(int addressPort) {
     if (addressPort < 1024 || addressPort > 65535) {
         return false;
+    }
+    return true;
+}
+
+bool Config::_repeatedPortValidation(const int addressPort) {
+    for (std::vector<ServerConfig>::const_iterator it = servers.begin(); it != servers.end(); ++it) {
+        if (it->getPort() == addressPort)
+            return false;
     }
     return true;
 }
