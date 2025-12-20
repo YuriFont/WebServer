@@ -303,6 +303,8 @@ void Server::removeCgiFd(const int& fd) {
     _cgiByFd.erase(fd);
 }
 
+
+
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
 
     if (clients.find(cgi->client_fd) == clients.end()) {
@@ -337,24 +339,18 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
 
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
 
-    // 1️⃣ Parse CGI output → HttpResponse
     HttpResponse response = cgiHandler->responseHTTP(cgi->output);
 
 
     client.setCloseConnection(response.isConnectionClose());
     client.setCodeResponseStatus(response.getStatusResponse());
-    // send(client_fd, resp.toString().c_str(), resp.toString().size(), 0);
-    // logStatusResponse(client_fd, client);
-    // bool closeConnection = 
+
     client.setResponse(response.toString());
-    // removeMethodHandler(client, response);
 
-
-    // std::cout << "Resposta construida: " <<  client.getResponse() << std::endl;
 
     epoll_event& event = client.getDataEvent();
     event.events = EPOLLOUT; 
-    // 2️⃣ Agora o cliente pode escrever
+    // Modificar o cliente para poder escrever no socket
     epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
 
     // 3️⃣ Cleanup
