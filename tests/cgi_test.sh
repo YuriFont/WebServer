@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SERVER_BINARY=./bin/webserv
-CONF_FILE=./config/test.conf
+CONF_FILE=./config/tests/cgi_test.conf
 PORT=8080
 LOGFILE="tests/logs/cgi_test.log"
 

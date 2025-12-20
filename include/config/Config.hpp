@@ -28,6 +28,7 @@ class Config {
         bool checkGlobalCGI(const std::string &path);
         void addGlobalCGI(ServerConfig &server, std::istringstream &iss, std::string &line);
         bool _repeatedPortValidation(const int addressPort);
+        bool _isPortInUseOnLocalhost(int port);
 };
 
 #endif

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 SERVER_BINARY=./bin/webserv
-CONF_FILE=./config/test.conf
+CONF_FILE=./config/tests/post_test.conf
 UPLOAD_DIR=www/uploads
-PORT=8080
+PORT=8083
 LOGFILE="tests/logs/post_test.log"
 mkdir -p logs
 

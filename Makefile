@@ -70,7 +70,8 @@ test:
 	@cd tests && bash get_test.sh \
 	&& bash delete_test.sh \
 	&& bash post_test.sh \
-	&& bash cgi_test.sh
+	&& bash cgi_test.sh \
+	&& bash redirect_test.sh
 	@make fclean
 
 re: fclean all
