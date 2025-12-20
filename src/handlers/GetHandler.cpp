@@ -1,5 +1,6 @@
 #include "../../include/handlers/GetHandler.hpp"
 #include "../../include/utils/Utils.hpp"
+#include "../../include/utils/ErrorPage.hpp"
 
 
 // GetHandler::GetHandler(): _respons {};
@@ -85,6 +86,7 @@ void GetHandler::isDir(const std::string& path, const HttpRequest &request, cons
     }
     //Arquivo forbidden
     response.setStatus(404);
+    response.setBody(ErrorPage::build(404));
     response.setContentType("text/html");
 }
 
@@ -103,6 +105,7 @@ HttpResponse& GetHandler::process(const HttpRequest &request, const Location &lo
     if (stat(path.c_str(), &info) != 0){
         //Arquivo não encontrado
         _response->setStatus(404);
+        _response->setBody(ErrorPage::build(404));
         _response->setContentType("text/html");
         return *_response;
     }

@@ -54,6 +54,7 @@ class Server {
         void handleCgiEvent(int fd, uint32_t ev);
         void handleCgiWrite(int fd);
         void handleCgiRead(int fd);
+        void removeCgiFd(const int& fd);
 };
 
 #endif

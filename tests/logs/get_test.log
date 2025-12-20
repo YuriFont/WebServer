@@ -9,7 +9,7 @@ Server listening on 127.0.0.1:8080
 [32mNew client in the server 8080[0m
 [FD 5] (+) Connection established
 [FD 5] <--- Request: GET /missing.html HTTP/1.1
-[FD 5] ---> GET /missing.html (404 Not Found) - 70 bytes
+[FD 5] ---> GET /missing.html (404 Not Found) - 582 bytes
 [31m[FD 5] (-) Connection closed[0m
 [32mNew client in the server 8080[0m
 [FD 5] (+) Connection established
