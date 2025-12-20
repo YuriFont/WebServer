@@ -27,6 +27,7 @@ class Config {
         bool _PortValidation(int addressPort);
         bool checkGlobalCGI(const std::string &path);
         void addGlobalCGI(ServerConfig &server, std::istringstream &iss, std::string &line);
+        bool _repeatedPortValidation(const int addressPort);
 };
 
 #endif
