@@ -1,8 +1,8 @@
 #!/bin/bash
 
 SERVER_BINARY=./bin/webserv
-CONF_FILE=./config/test.conf
-PORT=8080
+CONF_FILE=./config/tests/redirect_test.conf
+PORT=8084
 LOGFILE="tests/logs/redirect_test.log"
 mkdir -p tests/logs
 

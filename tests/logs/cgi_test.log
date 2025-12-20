@@ -4,8 +4,7 @@ Server listening on 127.0.0.1:8080
 [32mNew client in the server 8080[0m
 [FD 5] (+) Connection established
 [FD 5] <--- Request: GET /test.py HTTP/1.1
-[FD 5] ---> GET /test.py (200 OK) - 740 bytes
-[31m[FD 5] (-) Connection closed[0m
+[FD 5] ---> GET /test.py (200 OK) - 100 bytes
 [32mNew client in the server 8080[0m
 [FD 5] (+) Connection established
 [FD 5] <--- Request: GET /cgi-bin/test.py HTTP/1.1

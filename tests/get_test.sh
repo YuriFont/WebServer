@@ -1,8 +1,8 @@
 #!/bin/bash
 
 SERVER_BINARY=./bin/webserv
-CONF_FILE=./config/test.conf
-PORT=8080
+CONF_FILE=./config/tests/get_test.conf
+PORT=8082
 LOGFILE="tests/logs/get_test.log"
 mkdir -p logs
 

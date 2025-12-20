@@ -98,6 +98,8 @@ void Config::_parseListen(std::istringstream &iss, ServerConfig &server) {
         throw std::runtime_error("Invalid port number: " + Utils::toString(addressPort) + " in " + _filePath);
     if (!_repeatedPortValidation(addressPort))
         throw std::runtime_error("This door is already in use: " + Utils::toString(addressPort) + " in " + _filePath);
+    if (_isPortInUseOnLocalhost(addressPort))
+        throw std::runtime_error("This door is already in use: " + Utils::toString(addressPort) + " in " + _filePath);
 
     server.ip = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
     server.port = addressPort;
@@ -148,6 +150,32 @@ bool Config::_repeatedPortValidation(const int addressPort) {
             return false;
     }
     return true;
+}
+
+bool Config::_isPortInUseOnLocalhost(int port) {
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
+        throw std::runtime_error("socket() failed");
+
+    sockaddr_in addr;
+    std::memset(&addr, 0, sizeof(addr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+
+    if (inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) <= 0) {
+        close(sockfd);
+        throw std::runtime_error("inet_pton() failed");
+    }
+
+    bool inUse = false;
+
+    if ((bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) && (errno == EADDRINUSE))
+        inUse = true;
+
+    close(sockfd);
+
+    return inUse;
 }
 
 void Config::_parseServerName(std::istringstream &iss, ServerConfig &server) {
