@@ -11,11 +11,15 @@ class Client {
     private:
 
         int client_fd;
-        int contentLength;
+        size_t contentLength;
         bool isHeadersReceived;
         bool isHeadersParsed;
         epoll_event event;
         HttpRequest request;
+        std::string _response;
+        ssize_t bytesSend;
+        std::string _responseStatus;
+        bool closeConnection;
         
         
     public:
@@ -27,12 +31,20 @@ class Client {
         Client& operator=(const Client& other);
         ~Client();
         epoll_event& getDataEvent();
-        const int& getClienteFd();
+        const int& getClienteFd() const;
+        void setCodeResponseStatus(const std::string& status);
+        const std::string& getCodeResponseStatus();
         void addBuffer(const std::string& request);
         void addBody(const std::string& body);
         HttpRequest& getRequest();
+        std::string& getResponse();
+        void setResponse(const std::string& resp);
         bool isAllHeaders();
-        int getLenBody();
+        size_t getLenBody();
         void eraseBody();
         void cleanData();
+        void addBytesSend(ssize_t& bytes);
+        ssize_t& getBytesSend();
+        void setCloseConnection(const bool& connection);
+        const bool& getCloseConnection();
 };

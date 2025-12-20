@@ -22,6 +22,7 @@
 #include <ctime>
 #include <dirent.h>
 #include <sys/wait.h>
+#include <csignal>
 
 #define RESET   "\033[0m"
 #define GREEN   "\033[32m"

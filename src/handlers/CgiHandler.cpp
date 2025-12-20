@@ -1,8 +1,8 @@
 #include "../../include/handlers/CgiHandler.hpp"
 
 
-CgiHandler::CgiHandler(const ServerConfig& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
-
+CgiHandler::CgiHandler(const ServerConfig& config, const HttpRequest& request, const Location& location, int client_fd): _config(config), _request(request), _location(location), _response(NULL), _isFinish(false) {
+    this->client_fd = client_fd;
 };
 
 CgiHandler::CgiHandler(const CgiHandler& other): _config(other._config), _request(other._request), _location(other._location), _response(NULL), _isFinish(other._isFinish) {
@@ -25,13 +25,15 @@ IMethodHandler* CgiHandler::clone() const {
     return new CgiHandler(*this);
 };
 
+bool CgiHandler::isCgi() const {
+     return true; 
+};
+
 void CgiHandler::handleData(const std::string& chunk) {
 
     _body.append(chunk);
     if ((int)_body.size() == _request.getContentLength()) {
-        std::string extension = getExtensionCgi();
-        HttpResponse& response = process(_request, _location, extension);
-        _response = &response;
+        std::cout << "body size: " << _body.size() << " Request length: " << _request.getContentLength() << std::endl;
         _isFinish = true;
     }
 };
@@ -52,13 +54,20 @@ std::string CgiHandler::getExtensionCgi() {
     return extension;
 }
 
+HttpResponse& CgiHandler::buildCgiResponse() {
+    HttpResponse *resp = new HttpResponse();
+
+    resp->setBody("<h1>deu certo</h1>");
+    resp->setStatus(200);
+    return *resp;
+};
+
+
 HttpResponse& CgiHandler::getResponse() {
 
     if (_response != NULL)
         return *_response;
-
-    std::string extension = getExtensionCgi();
-    HttpResponse& response = process(_request, _location, extension);
+    HttpResponse& response = buildCgiResponse();
     return response;
 };
 
@@ -195,47 +204,44 @@ HttpResponse& CgiHandler::responseHTTP(const std::string &output)
     return *_response;
 }
 
-HttpResponse& CgiHandler::process(const HttpRequest &request, const Location &location, std::string extension) {
-    std::string interpreter;
-    std::string path = Utils::buildPathRequisition(location.getPath(), location.getRoot(), request.getPath());
-    std::string requestExt = Utils::getExtension(request.getPath());
+CgiProcess* CgiHandler::startCgi(){
 
-    if (_config.hasGlobalCGI && _config.hasExtGlobalCgi(requestExt))
-        interpreter = _config.extAndPath.find(requestExt)->second;
+    std::string path = Utils::buildPathRequisition(_location.getPath(), _location.getRoot(), _request.getPath());
+    std::string extension = getExtensionCgi();
+    std::string interpreter;
+
+
+    if (_config.hasGlobalCGI && _config.hasExtGlobalCgi(extension))
+        interpreter = _config.extAndPath.find(extension)->second;
     else
-        interpreter = location.getCgiPathForExtension(extension);
+        interpreter = _location.getCgiPathForExtension(extension);
 
     int inPipe[2]; //servidor -> CGI (STDIN do CGI)
     int outPipe[2]; //CGI -> servidor (STDOUT do CGI)
+
+    
     if (pipe(inPipe) == -1 || pipe(outPipe) == -1)
         throw std::runtime_error("Error creating pipe");
+    fcntl(inPipe[1], F_SETFL, O_NONBLOCK);
+    fcntl(outPipe[0], F_SETFL, O_NONBLOCK);
     pid_t pid = fork();
     if (pid < 0)
         throw std::runtime_error("Error forking process");
     if(pid == 0) //processo filho - executa o CGI
-        spawnCgiChild(request, location, path, interpreter, inPipe, outPipe);
+        spawnCgiChild(_request, _location, path, interpreter, inPipe, outPipe);
 
     //Processo pai: lê a resposta
     close(inPipe[0]);
     close(outPipe[1]);
 
-    //Envia o corpo do POST (se houver)
-    if (request.getMethod() == "POST" && !_body.empty()) {
-        int bytes = write(inPipe[1], _body.c_str(), _body.size());
-        if (bytes <= -1) {
+    CgiProcess* cgi = new CgiProcess();
+    cgi->stdin_fd = inPipe[1];
+    cgi->stdout_fd = outPipe[0];
+    cgi->pid = pid;
+    cgi->client_fd = client_fd;
+    cgi->input = _body;   // body JÁ LIDO
+    cgi->stdin_closed = false;
 
-            // exceção ou retorna erro ?
-            std::cout << "Erro on wirite in pipe" << std::endl;
-        }
+    return cgi;
 
-    }
-    close(inPipe[1]);
-
-    //Lê saída do CGI
-    std::string output = readCgiOutput(outPipe, pid);
-
-    //Monta a resposta HTTP
-    HttpResponse& response = responseHTTP(output);
-
-    return response;
 }

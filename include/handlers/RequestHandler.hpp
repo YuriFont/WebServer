@@ -18,7 +18,7 @@
 class RequestHandler {
 public:
     RequestHandler(const ServerConfig &config);
-    static IMethodHandler* handle(const ServerConfig &server, HttpRequest &request, const Location &location);
+    static IMethodHandler* handle(const ServerConfig &server, HttpRequest &request, const Location &location, int client_fd);
     const ServerConfig& getConfig() {
         return this->_config;
     }
