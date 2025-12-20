@@ -1,9 +1,9 @@
 #!/bin/bash
 
 SERVER_BINARY=./bin/webserv
-CONF_FILE=./config/test.conf
+CONF_FILE=./config/tests/delete_test.conf
 UPLOAD_DIR=./www/uploads
-PORT=8080
+PORT=8081
 LOGFILE="tests/logs/delete_test.log"
 mkdir -p logs
 
