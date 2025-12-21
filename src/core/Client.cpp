@@ -148,11 +148,3 @@ void Client::cleanData() {
     this->bytesSend = 0;
     this->request.clearAllData();
 }
-
-time_t  Client::getLastActivity() const {
-    return _lastActivity;
-}
-
-void    Client::setLastActivity(time_t t) {
-    _lastActivity = t;
-}

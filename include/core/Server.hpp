@@ -27,7 +27,6 @@ class Server {
         std::map<int, Client> clients;
         std::map<int, CgiProcess*> _cgiByFd;
         bool _running;
-        const int _CLIENT_TIMEOUT;
         
         void initAllSockets();
         void registerSocketsInEpoll();
@@ -56,9 +55,6 @@ class Server {
         void handleCgiWrite(int fd);
         void handleCgiRead(int fd);
         void removeCgiFd(const int& fd);
-
-        void updateClientActivity(int fd);
-        void checkClientTimeouts();
 };
 
 #endif
