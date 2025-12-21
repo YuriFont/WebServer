@@ -49,17 +49,9 @@ const std::string& ChunkedDecoder::getBody() const {
  * pois chunked NÃO garante alinhamento com recv().
  */
 void ChunkedDecoder::feed(const char* data, size_t len) {
-
-    std::cout << data << std::endl;
     // Índice usado para percorrer o buffer recebido do socket.
     // Ele avança à medida que bytes são consumidos.
     size_t i = 0;
-
-    // Log de debug mostrando quantos bytes chegaram neste recv
-    // e em qual estado a máquina de estados se encontra.
-    std::cout << "[DEBUG][Chunked] feed len=" << len
-              << " state=" << _state << std::endl;
-
     /*
      * Processa os dados byte a byte enquanto:
      *  - ainda existem bytes não consumidos no buffer recebido
@@ -106,7 +98,6 @@ void ChunkedDecoder::feed(const char* data, size_t len) {
                      *   "\r\n"
                      */
                     if (_sizeBuffer.empty()) {
-                        std::cerr << "[ERROR][Chunked] empty chunk size\n";
                         _state = DONE;
                         return;
                     }
@@ -155,7 +146,6 @@ void ChunkedDecoder::feed(const char* data, size_t len) {
                  * 0-9, a-f, A-F
                  */
                 if (!std::isxdigit(static_cast<unsigned char>(data[i]))) {
-                    std::cerr << "[ERROR][Chunked] invalid hex digit\n";
                     _state = DONE;
                     return;
                 }
@@ -245,7 +235,6 @@ void ChunkedDecoder::feed(const char* data, size_t len) {
                  * Qualquer coisa diferente de CRLF
                  * neste ponto viola o protocolo HTTP.
                  */
-                std::cerr << "[ERROR][Chunked] missing CRLF after chunk data\n";
                 _state = DONE;
                 return;
             }

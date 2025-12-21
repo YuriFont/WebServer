@@ -180,7 +180,6 @@ void Server::prepareResponse(const int &client_fd, Client& client) {
 }
 
 void Server::addBuffer(Client& client, char* buffer, int& bytes) {
-
     // Enquanto os headers ainda NÃO foram totalmente recebidos
     if (!client.isAllHeaders()) {
         // Acumula dados no buffer interno do Client
@@ -216,7 +215,6 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
                         remainingBody.size()
                     );
                 }
-
             } else {
                 // Content-Length normal
                 if (!remainingBody.empty()) {
@@ -271,12 +269,8 @@ void Server::handleClientRequest(int client_fd) {
     if (client.isChunked()){
         if(!client.isChunkedFinished())
             return;
-        if (!client.hasDeliveredBody()){
-            client.getRequest().setBody(client.getChunkedBody());
-            client.handler->handleData(client.getRequest().getBody());
-            client.markBodyDelivered();
-            client.eraseBody();
-        }
+        client.getRequest().setBody(client.getChunkedBody());
+        client.handler->handleData(client.getRequest().getBody());
     }
     else {
         client.handler->handleData(client.getRequest().getBody());
@@ -302,8 +296,6 @@ void Server::sendResponseClient(int client_fd) {
         removeClient(client_fd);
         return;
     }
-
-
     client.addBytesSend(bytesSend);
     // Se precisa fazer cast e porque o tipo está errado
     if ((size_t)client.getBytesSend() == client.getLenBody()) {
@@ -335,7 +327,6 @@ void Server::handleCgiWrite(int fd) {
     }
 }
 
-
 void Server::startCgiForClient(Client& client) {
     
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
@@ -366,8 +357,6 @@ void Server::removeCgiFd(const int& fd) {
     close(fd);
     _cgiByFd.erase(fd);
 }
-
-
 
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
 
@@ -411,13 +400,12 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
 
     client.setResponse(response.toString());
 
-
     epoll_event& event = client.getDataEvent();
     event.events = EPOLLOUT; 
     // Modificar o cliente para poder escrever no socket
     epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
 
-    // 3️⃣ Cleanup
+    // Cleanup
     if (!cgi->stdin_closed) {
         cgi->stdin_closed = true;
         removeCgiFd(cgi->stdin_fd);
@@ -452,8 +440,7 @@ void Server::handleCgiRead(int fd) {
         waitpid(cgi->pid, NULL, 0);
         finalizeCgiResponse(cgi);
     } else {
-        
-        std::cout << "Acho que deu erro" << std::endl;
+    
         if (!cgi->stdin_closed) {
             cgi->stdin_closed = true;
             removeCgiFd(cgi->stdin_fd);

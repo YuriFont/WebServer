@@ -7,13 +7,16 @@ MultipartProcessor::MultipartProcessor(const ServerConfig& config, const Locatio
     _boundary = getBoundary(_contentType);
     _endBoundary = _boundary + "--";
     _contentLength = request.getContentLength();
+    if (request.isChunked()) {
+        _contentLength = 0; // invalida explicitamente
+    }
 };
 
 bool MultipartProcessor::isMaxBodySize() {
     if (_contentLength > _config.client_max_body_size)
         return true;
-    else if (_bytesReceived > _contentLength )
-        return true;
+    //else if (_bytesReceived > _contentLength )
+    //    return true;
     return false;
 };
 
@@ -33,12 +36,12 @@ void MultipartProcessor::handleChunk(const std::string& chunk) {
         return;
     }
     handleMultipart(chunk);
-    if (_bytesReceived >= _contentLength) {
-        _response = new HttpResponse();
-        _response->setStatus(201);
-        _response->setBody("<h2>Tudo certo</h2>");
-        _isFinished = true;
-    }
+    //if (_bytesReceived >= _contentLength) {
+    //    _response = new HttpResponse();
+    //    _response->setStatus(201);
+    //    _response->setBody("<h2>Created</h2>");
+    //    _isFinished = true;
+    //}
 };
 
 bool MultipartProcessor::isFinished() {
@@ -121,62 +124,109 @@ std::string MultipartProcessor::getNameFileMultipart() {
 
 void MultipartProcessor::handleMultipart(const std::string& chunk) {
 
-
+    // Acumula dados recebidos (stream)
     _body.append(chunk);
     _bytesReceived += chunk.size();
 
-    // mudar para aceitar também quando o chunck estiver completo
-    if (_currentState == READING_HEADERS) {
+    while (true) {
 
-        size_t endHeaders = _body.find("\r\n\r\n");
-        if (endHeaders == std::string::npos)
-            return ;
-        _currentState = READING_BODY;
-        std::string contents = _body.substr(0, endHeaders);
-        _body.erase(0, endHeaders + 4);
-        parseHeaderLine(contents, _currentContents);
-        std::string filePath = getNameFileMultipart();
-        _outFile.open(filePath.c_str(), std::ios::binary | std::ios::app);
-    }
+        /* ===============================
+         * ESTADO: READING_HEADERS
+         * =============================== */
+        if (_currentState == READING_HEADERS) {
 
-    if (_currentState == READING_BODY) {
+            size_t endHeaders = _body.find("\r\n\r\n");
+            if (endHeaders == std::string::npos)
+                return; // headers ainda incompletos
 
-        size_t endBody = _body.find(_boundary);
-        if (endBody == std::string::npos) {
-            size_t boundarySize = _boundary.length();
+            std::string headers = _body.substr(0, endHeaders);
+            _body.erase(0, endHeaders + 4);
 
-            if (_body.size() > boundarySize) {
-                size_t bytesToWrite = _body.size() - boundarySize;
-                
-                append(_body, bytesToWrite); 
-                _body.erase(0, bytesToWrite);
+            // Parse dos headers da parte
+            _currentContents = content(); // zera struct
+            parseHeaderLine(headers, _currentContents);
+
+            // Abre arquivo para escrita
+            std::string filePath = getNameFileMultipart();
+            _outFile.open(filePath.c_str(), std::ios::binary);
+            if (!_outFile.is_open()) {
+                _currentState = READY;
+                _isFinished = true;
+                return;
             }
-        } else {
-            size_t bytesToWrite = endBody;
-            if (bytesToWrite >= 2 && _body.substr(bytesToWrite - 2, 2) == "\r\n") {
+
+            _currentState = READING_BODY;
+        }
+
+        /* ===============================
+         * ESTADO: READING_BODY
+         * =============================== */
+        if (_currentState == READING_BODY) {
+
+            size_t boundaryPos = _body.find(_boundary);
+
+            if (boundaryPos == std::string::npos) {
+                // Não encontramos boundary ainda
+                // Escrevemos tudo menos o possível prefixo da boundary
+                size_t safeSize = _body.size() > _boundary.size()
+                                ? _body.size() - _boundary.size()
+                                : 0;
+
+                if (safeSize > 0) {
+                    _outFile.write(_body.data(), safeSize);
+                    _body.erase(0, safeSize);
+                }
+                return;
+            }
+
+            // Encontramos boundary → final do arquivo atual
+            size_t bytesToWrite = boundaryPos;
+
+            // Remove CRLF antes da boundary
+            if (bytesToWrite >= 2 &&
+                _body.substr(bytesToWrite - 2, 2) == "\r\n") {
                 bytesToWrite -= 2;
             }
 
-            append(_body, bytesToWrite); 
+            // Escreve dados finais do arquivo
+            _outFile.write(_body.data(), bytesToWrite);
+            _outFile.close();
 
-            _outFile.close(); 
-            
-            // verificar fim
-            size_t endOfBoundary = endBody + _boundary.length();
-            if (_body.substr(endOfBoundary, 2) == "--") {
-                _currentState = READY; //está pronto
-                _body.clear();
-            } else {
-                _currentState = READING_HEADERS; // ler o proximo header
-                _currentContents.disposition.erase();
-                _currentContents.name.erase();
-                _currentContents.fileName.erase();
-                _currentContents.contentType.erase();
-                _body.erase(0, endOfBoundary + 2); // +2 para pular o \r\n depois da boundary, ler o proximo hearder
+            // Avança buffer até depois da boundary
+            size_t afterBoundary = boundaryPos + _boundary.size();
+            bool isFinalBoundary = false;
+
+            if (_body.substr(afterBoundary, 2) == "--") {
+                isFinalBoundary = true;
+                afterBoundary += 2;
             }
+
+            // Consome CRLF após boundary
+            if (_body.substr(afterBoundary, 2) == "\r\n")
+                afterBoundary += 2;
+
+            _body.erase(0, afterBoundary);
+
+            if (isFinalBoundary) {
+                // 🔥 FINAL REAL DO MULTIPART
+                _currentState = READY;
+                _isFinished = true;
+
+                _response = new HttpResponse();
+                _response->setStatus(201);
+                _response->setBody("<h2>Created</h2>");
+                return;
+            }
+
+            // Próxima parte
+            _currentState = READING_HEADERS;
+            continue;
         }
+
+        return;
     }
-};
+}
+
 
 // bool MultipartProcessor::append(std::string data, size_t len) {};
 
