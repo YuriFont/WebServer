@@ -20,7 +20,7 @@ class Client {
         ssize_t bytesSend;
         std::string _responseStatus;
         bool closeConnection;
-        
+        time_t _lastActivity;
         
     public:
         
@@ -47,4 +47,7 @@ class Client {
         ssize_t& getBytesSend();
         void setCloseConnection(const bool& connection);
         const bool& getCloseConnection();
+        time_t  getLastActivity() const;
+        void    setLastActivity(time_t t);
+        void    refreshLasActivity();
 };
