@@ -13,12 +13,18 @@ MultipartProcessor::MultipartProcessor(const ServerConfig& config, const Locatio
 };
 
 bool MultipartProcessor::isMaxBodySize() {
-    if (_contentLength > _config.client_max_body_size)
+    // Limite REAL: bytes já recebidos
+    if (_bytesReceived > _config.client_max_body_size)
         return true;
-    //else if (_bytesReceived > _contentLength )
-    //    return true;
+
+    // Caso NÃO seja chunked, dá para abortar cedo
+    if (_contentLength > 0 &&
+        _contentLength > _config.client_max_body_size)
+        return true;
+
     return false;
-};
+}
+
 
 MultipartProcessor::~MultipartProcessor() {
 
@@ -27,12 +33,12 @@ MultipartProcessor::~MultipartProcessor() {
 };
 
 void MultipartProcessor::handleChunk(const std::string& chunk) {
-
+    _bytesReceived += chunk.size();
     if (isMaxBodySize()) {
         _response = new HttpResponse();
-        _isFinished = true;
         _response->setStatus(413);
         _response->setConnectionClose(true);
+        _isFinished = true;
         return;
     }
     handleMultipart(chunk);
@@ -89,7 +95,6 @@ std::string MultipartProcessor::setTimeInNameFile(std::string & fileName) {
     return result;
 }
 
-
 std::string MultipartProcessor::getNameFileMultipart() {
 
     const std::string uploadStore = _location.getUploadStore() + "/";
@@ -118,7 +123,6 @@ std::string MultipartProcessor::getNameFileMultipart() {
             filePath = uploadStore + setTimeInNameFile(fileName);
         }
     }
-
     return filePath;
 }
 
@@ -226,7 +230,6 @@ void MultipartProcessor::handleMultipart(const std::string& chunk) {
         return;
     }
 }
-
 
 // bool MultipartProcessor::append(std::string data, size_t len) {};
 
