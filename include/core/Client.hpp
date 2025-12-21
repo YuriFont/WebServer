@@ -16,7 +16,6 @@ class Client {
         bool isHeadersReceived;
         bool isHeadersParsed;
         bool _isChunked;
-        bool _bodyDelivered;
         epoll_event event;
         HttpRequest request;
         ChunkedDecoder _chunkedDecoder;
@@ -54,8 +53,6 @@ class Client {
         bool isChunkedFinished() const;
         const std::string& getChunkedBody() const;
         std::string extractBodyAfterHeaders();
-        bool hasDeliveredBody() const;
-        void markBodyDelivered();
         void addBytesSend(ssize_t& bytes);
         ssize_t& getBytesSend();
         void setCloseConnection(const bool& connection);

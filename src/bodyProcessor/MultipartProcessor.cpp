@@ -33,7 +33,6 @@ MultipartProcessor::~MultipartProcessor() {
 };
 
 void MultipartProcessor::handleChunk(const std::string& chunk) {
-    _bytesReceived += chunk.size();
     if (isMaxBodySize()) {
         _response = new HttpResponse();
         _response->setStatus(413);
@@ -127,7 +126,6 @@ std::string MultipartProcessor::getNameFileMultipart() {
 }
 
 void MultipartProcessor::handleMultipart(const std::string& chunk) {
-
     // Acumula dados recebidos (stream)
     _body.append(chunk);
     _bytesReceived += chunk.size();

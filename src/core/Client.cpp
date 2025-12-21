@@ -7,7 +7,6 @@ Client::Client(): contentLength(0), bytesSend(0), handler(NULL)  {
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
     this->_isChunked = false;
-    this->_bodyDelivered = false;
     this->_responseStatus = -1;
     this->closeConnection = false;
 };
@@ -50,8 +49,6 @@ Client::Client(const int& client_fd): contentLength(0), bytesSend(0), handler(NU
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
     this->_isChunked = false;
-    this->_bodyDelivered = false;
-
     this->_responseStatus = -1;
     this->closeConnection = false;
 };
@@ -73,7 +70,6 @@ Client& Client::operator=(const Client& other) {
         this->isHeadersParsed = other.isHeadersParsed;
         this->event = other.event;
         this->_isChunked = other._isChunked;
-        this->_bodyDelivered = other._bodyDelivered;
         this->request = other.request;
         this->bytesSend = other.bytesSend;
         if (other.handler != NULL) {
@@ -140,7 +136,6 @@ void Client::cleanData() {
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
     this->_isChunked = false;
-    this->_bodyDelivered = false;
     _chunkedDecoder.reset();
     this->_response.erase();
     this->closeConnection = false;
@@ -176,11 +171,3 @@ const std::string& Client::getChunkedBody() const {
 std::string Client::extractBodyAfterHeaders() {
         return request.extractBodyAfterHeaders();
     }
-
-bool Client::hasDeliveredBody() const {
-    return _bodyDelivered;
-}
-
-void Client::markBodyDelivered() {
-    _bodyDelivered = true;
-}
