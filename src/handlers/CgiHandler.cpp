@@ -12,7 +12,6 @@ CgiHandler::CgiHandler(const CgiHandler& other): _config(other._config), _reques
     }
 };
 
-
 CgiHandler::~CgiHandler() {
 
     if (_response != NULL) {
@@ -32,8 +31,12 @@ bool CgiHandler::isCgi() const {
 void CgiHandler::handleData(const std::string& chunk) {
 
     _body.append(chunk);
-    if ((int)_body.size() == _request.getContentLength()) {
-        std::cout << "body size: " << _body.size() << " Request length: " << _request.getContentLength() << std::endl;
+    if (!_request.isChunked()){
+        if (_body.size() >= static_cast<size_t>(_request.getContentLength())){
+            _isFinish = true;
+        }
+    }
+    else{
         _isFinish = true;
     }
 };
@@ -57,7 +60,7 @@ std::string CgiHandler::getExtensionCgi() {
 HttpResponse& CgiHandler::buildCgiResponse() {
     HttpResponse *resp = new HttpResponse();
 
-    resp->setBody("<h1>deu certo</h1>");
+    resp->setBody("<h1>OK</h1>");
     resp->setStatus(200);
     return *resp;
 };

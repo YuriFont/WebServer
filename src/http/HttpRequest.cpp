@@ -138,6 +138,15 @@ int HttpRequest::getContentLength() const {
     return std::atoi(value.c_str());
 }
 
+// size_t HttpRequest::getContentLength() const {
+//     std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
+//     if (it == _headers.end())
+//         return 0;
+
+//     return static_cast<size_t>(std::strtoull(it->second.c_str(), NULL, 10));
+// }
+
+
 void HttpRequest::reserveSpaceBody(size_t size) {
     this->_body.reserve(size);
 };

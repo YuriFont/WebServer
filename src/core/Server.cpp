@@ -215,14 +215,9 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
                         remainingBody.size()
                     );
                 }
-            } else {
-                // Content-Length normal
-                if (!remainingBody.empty()) {
-                    client.addBody(remainingBody);
-                }
             }
         }
-    } 
+    }
     else {
         // Headers já foram lidos → agora estamos lidando com o BODY
 
@@ -239,7 +234,7 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
             client.addBody(std::string(buffer, bytes));
         }
     }
-}
+}  
 
 void Server::epoll_add(int fd, uint32_t events) {
     struct epoll_event ev;
