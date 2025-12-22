@@ -208,9 +208,35 @@ CgiProcess* CgiHandler::startCgi(){
 
     std::string path = Utils::buildPathRequisition(_location.getPath(), _location.getRoot(), _request.getPath());
     std::string extension = getExtensionCgi();
+    
+    if (!Utils::validTraversalPath(path, _location.getRoot())) {
+        CgiProcess* cgi = new CgiProcess();
+        cgi->client_fd = client_fd;
+        cgi->input = _body;   // body JÁ LIDO
+        cgi->stdin_closed = true;
+        cgi->stdout_closed = true;
+        cgi->status = CgiProcess::CGI_FORBIDDEN;
+        return cgi;
+    }
+
+    struct stat info;
+    if (stat(path.c_str(), &info) != 0) {
+
+        CgiProcess* cgi = new CgiProcess();
+        cgi->client_fd = client_fd;
+        cgi->input = _body;   // body JÁ LIDO
+        cgi->stdin_closed = true;
+        cgi->stdout_closed = true;
+        if (errno == EACCES)
+            cgi->status = CgiProcess::CGI_FORBIDDEN;
+        else if (errno == ENOENT)
+            cgi->status = CgiProcess::CGI_NOT_FOUND;
+        else
+            cgi->status = CgiProcess::CGI_INTERNAL_ERROR;
+        return cgi;
+    }
+    
     std::string interpreter;
-
-
     if (_config.hasGlobalCGI && _config.hasExtGlobalCgi(extension))
         interpreter = _config.extAndPath.find(extension)->second;
     else
