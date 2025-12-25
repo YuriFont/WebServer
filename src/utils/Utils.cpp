@@ -124,6 +124,10 @@ bool Utils::readFile(const std::string &path, std::string &out)
     while((bytesRead = read(fd, buffer, sizeof(buffer))) > 0)
         out.append(buffer, bytesRead);
     close(fd);
+    if (bytesRead == -1) {
+        out.clear();
+        return false;
+    }
     return true;
 }
 

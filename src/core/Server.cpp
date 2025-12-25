@@ -99,23 +99,29 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
 
 void Server::removeClient(int client_fd) {
     epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
-    close(client_fd);
+    removeMethodHandler(clients[client_fd]);
     clients.erase(client_fd);
+    close(client_fd);
 }
 
 void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize, int& bytes) {
-    
+
+    // O epoll garantiu (EPOLLIN) que há dados ou um evento de fechamento. Então se retornar -1 e provavelmente um erro.
     bytes = recv(client_fd, buffer, bufSize, 0);
 
-    // tratar buffer
+    // Sucesso, vamos tratar o buffer continuando com o fluxo atual
     if (bytes > 0) {
         return ;
     }
-    else {
-        //erro de leitura no socket
-        removeClient(client_fd);
+
+    // Se bytes e == 0 o cliente notificou que vai se desconectar
+    // Se valor < 0 provavelmente e um erro pois o epoll nos garantiu que havia dados para ler
+    if (bytes == 0) {
         logClientDesconected(client_fd);
+    } else {
+        std::cerr << "[FD " << client_fd << "] Error reading socket, closing connection" << std::endl;
     }
+    removeClient(client_fd);
 }
 
 IMethodHandler* Server::buildMethodHandler(Client& client , int &client_fd) {
@@ -229,45 +235,58 @@ void Server::handleClientRequest(int client_fd) {
 
 void Server::sendResponseClient(int client_fd) {
 
+    // epoll nos garantiu o EPOLLOUT, então o socket esta disponivel para escrita
     Client& client = clients[client_fd];
     ssize_t bytesSend = send(client_fd, (client.getResponse().c_str() + client.getBytesSend()),  (client.getLenBody() - client.getBytesSend()), 0);
 
-    // std::cout << "Bytes send: " << bytesSend << std::endl;
-    if (bytesSend == -1) {
+    // Falha ao escrever no socket do cliente mesmo epoll nos garantindo que podiamos escrever
+    if (bytesSend < 0) {
         std::cout << "[FD " << client_fd << "] Error while send the response" << std::endl;
         removeClient(client_fd);
         return;
     }
 
-
+    // Adicionamos a quantidade de bytes que foram enviados, nem sempre vai ser total então pegamos o retorno do send que diz quantos bytes foram realmente enviados; Também e possivel que seja enviado 0 bytes
     client.addBytesSend(bytesSend);
-    // Se precisa fazer cast e porque o tipo está errado
     if ((size_t)client.getBytesSend() == client.getLenBody()) {
         logStatusResponse(client_fd, client);
         epoll_event& event = client.getDataEvent();
         event.events = EPOLLIN;
         epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
-
         removeMethodHandler(client);
         finalizeClientConnection(client_fd, client, client.getCloseConnection());
     }
 };
 
 void Server::handleCgiWrite(int fd) {
+
+    // Quando entra aqui o epoll nos garantiu que era possivel escrever no pipe
     CgiProcess* cgi = _cgiByFd[fd];
 
     ssize_t n = write(fd, cgi->input.c_str(), cgi->input.size());
     if (n > 0) {
+        // remover a parte que já foi enviada
         cgi->input.erase(0, n);
+        // se o input depois da remoção do que foi enviar, então quer dizer que ja enviamos tudo
         if (cgi->input.empty()) {
+            // fechamos o stdin do processo pois não vamos mais escrever
             if (!cgi->stdin_closed) {
+                // removemos da lista de interesse do epoll
                 epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
                 close(fd);
                 cgi->stdin_closed = true;
                 _cgiByFd.erase(cgi->stdin_fd);
-
             }
         }
+    } 
+    // erro ao tentar escrever no stdin do pipe no processo, já que o epoll nos mandou EPOLLOUT
+    // Necessario encerrar o processo e jogar o erro para o cliente ?
+    else {
+        std::cerr << "Error writing to CGI stdin. Closing pipe." << std::endl;
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
+        cgi->stdin_closed = true;
+        _cgiByFd.erase(fd);
+        close(fd);
     }
 }
 
@@ -366,41 +385,47 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
 }
 
 void Server::handleCgiRead(int fd) {
+
+    // Epoll nos notificou que tinha dados para ler
     CgiProcess* cgi = _cgiByFd[fd];
     char buffer[4096];
-    ssize_t n = read(fd, buffer, sizeof(buffer));
 
-    // std::cout << "Acabei de ler isso: " << buffer << std::endl;
+
+    ssize_t n = read(fd, buffer, sizeof(buffer));
+    // Vamos ler o que o pipe tinha e armazenar o resultado
     if (n > 0) {
         cgi->output.append(buffer, n);
-        // std::cout << "Acabei de ler isso: \n" << cgi->output << std::endl;
-
     }
-    else if (n == 0) {
-        if (!cgi->stdin_closed) {
-            cgi->stdin_closed = true;
-            removeCgiFd(cgi->stdin_fd);
+    else {
+        // Se n == 0 então chegamos no EOF, e esta tudo pronto para enviarmos para o cliente
+        if (n == 0) {
+            if (!cgi->stdin_closed) {
+                cgi->stdin_closed = true;
+                removeCgiFd(cgi->stdin_fd);
+            }
+            if (!cgi->stdout_closed) {
+                cgi->stdout_closed = true;
+                removeCgiFd(cgi->stdout_fd);
+            }
+            waitpid(cgi->pid, NULL, 0);
+            finalizeCgiResponse(cgi);
         }
-        if (!cgi->stdout_closed) {
-            cgi->stdout_closed = true;
-            removeCgiFd(cgi->stdout_fd);
+        // Se o n < 0 então e provavelmente um erro pois o epoll nos notificou que tinha dados para leitura
+        else {
+            
+            std::cerr << "[ " << cgi->client_fd << " ]" << " Error reading from CGI stdout (FD " << fd << "). Trusting epoll to close." << std::endl;
+            if (!cgi->stdin_closed) {
+                cgi->stdin_closed = true;
+                removeCgiFd(cgi->stdin_fd);
+            }
+            if (!cgi->stdout_closed) {
+                cgi->stdout_closed = true;
+                removeCgiFd(cgi->stdout_fd);
+            }
+            //remover cliente também ?
+            delete cgi;
         }
-        waitpid(cgi->pid, NULL, 0);
-        finalizeCgiResponse(cgi);
-    } else {
-        
-        std::cout << "Acho que deu erro" << std::endl;
-        if (!cgi->stdin_closed) {
-            cgi->stdin_closed = true;
-            removeCgiFd(cgi->stdin_fd);
-        }
-        if (!cgi->stdout_closed) {
-            cgi->stdout_closed = true;
-            removeCgiFd(cgi->stdout_fd);
-        }
-        //remover cliente também ?
-        delete cgi;
-    }
+    } 
 }
 
 void Server::handleCgiEvent(int fd, uint32_t ev) {
