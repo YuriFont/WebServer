@@ -99,8 +99,9 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
 
 void Server::removeClient(int client_fd) {
     epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
-    close(client_fd);
+    removeMethodHandler(clients[client_fd]);
     clients.erase(client_fd);
+    close(client_fd);
 }
 
 void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize, int& bytes) {
@@ -110,6 +111,9 @@ void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize
     // tratar buffer
     if (bytes > 0) {
         return ;
+    } else if (bytes == 0) {
+        removeClient(client_fd);
+        logClientDesconected(client_fd);
     }
     else {
         //erro de leitura no socket
@@ -169,8 +173,9 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
 void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
+    resp.setConnectionClose(client.getCloseConnection());
     client.setResponse(resp.toString());
-    client.setCloseConnection(resp.isConnectionClose());
+    // client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
 
     epoll_event& event = client.getDataEvent();
@@ -208,7 +213,7 @@ void Server::addBuffer(Client& client, char* buffer, int& bytes) {
                 //  - Detectar o chunk final (0\r\n\r\n)
                 client.initChunkedDecoder(); // se existir
 
-                //alimenta o decoder com o resto
+                // alimenta o decoder com o resto
                 if (!remainingBody.empty()) {
                     client.feedChunked(
                         remainingBody.c_str(),
@@ -248,7 +253,7 @@ void Server::epoll_add(int fd, uint32_t events) {
 
 void Server::handleClientRequest(int client_fd) {
     
-    char buffer[2048];
+    char buffer[8192];
     int bytes = 0;
 
     readClientBuffer(client_fd, buffer, sizeof(buffer), bytes);
@@ -262,17 +267,24 @@ void Server::handleClientRequest(int client_fd) {
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
     if (client.isChunked()){
+        // std::cout << client.getRequest().getBody() << std::endl;
         if(!client.isChunkedFinished())
             return;
-        client.getRequest().setBody(client.getChunkedBody());
-        client.handler->handleData(client.getRequest().getBody());
+
+        if (!client.isBodyDelivered()) {
+            // std::cout << "Vou setar o body do chuncked, tamanho atual: " << client.getChunkedBody().size() << std::endl;
+            client.getRequest().setBody(client.getChunkedBody());
+            client.handler->handleData(client.getRequest().getBody());
+            client.eraseBody();
+            client.setBodyDelivered(true);
+        }
     }
     else {
         client.handler->handleData(client.getRequest().getBody());
         client.eraseBody();
     }
     if (client.handler->isFinished()) {
-        if (client.handler->isCgi()) {
+        if (client.handler->isCgi() && !client.handler->isError()) {
             startCgiForClient(client);
         }
         else
@@ -283,7 +295,11 @@ void Server::handleClientRequest(int client_fd) {
 void Server::sendResponseClient(int client_fd) {
 
     Client& client = clients[client_fd];
-    ssize_t bytesSend = send(client_fd, (client.getResponse().c_str() + client.getBytesSend()),  (client.getLenBody() - client.getBytesSend()), 0);
+    const size_t MAX_SEND = 8192; // ou 4096
+    size_t remaining = client.getLenBody() - client.getBytesSend();
+    size_t toSend = std::min(MAX_SEND, remaining);
+    // std::cout << "Tamanho do corpo a ser enviado: " << client.getLenBody() << " Enviado: " <<  client.getBytesSend() << std::endl;
+    ssize_t bytesSend = send(client_fd, (client.getResponse().data() + client.getBytesSend()),  toSend, 0);
 
     // std::cout << "Bytes send: " << bytesSend << std::endl;
     if (bytesSend == -1) {
@@ -294,11 +310,12 @@ void Server::sendResponseClient(int client_fd) {
     client.addBytesSend(bytesSend);
     // Se precisa fazer cast e porque o tipo está errado
     if ((size_t)client.getBytesSend() == client.getLenBody()) {
+
         logStatusResponse(client_fd, client);
         epoll_event& event = client.getDataEvent();
         event.events = EPOLLIN;
         epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
-
+        
         removeMethodHandler(client);
         finalizeClientConnection(client_fd, client, client.getCloseConnection());
     }
@@ -307,18 +324,28 @@ void Server::sendResponseClient(int client_fd) {
 void Server::handleCgiWrite(int fd) {
     CgiProcess* cgi = _cgiByFd[fd];
 
-    ssize_t n = write(fd, cgi->input.c_str(), cgi->input.size());
+    // std::cout << "Escrevendo no pipe" << std::endl;
+    const size_t MAX_WRITE = 4096; // PIPE_BUF seguro
+
+    size_t remaining = cgi->input.size() - cgi->input_offset;
+
+    size_t toWrite = std::min(MAX_WRITE, remaining);
+
+
+    ssize_t n = write(fd, (cgi->input.data() + cgi->input_offset), toWrite);
     if (n > 0) {
-        cgi->input.erase(0, n);
-        if (cgi->input.empty()) {
+        cgi->input_offset += n;
+
+        if (cgi->input_offset == cgi->input.size()) {
             if (!cgi->stdin_closed) {
                 epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
                 close(fd);
                 cgi->stdin_closed = true;
                 _cgiByFd.erase(cgi->stdin_fd);
-
             }
         }
+    } else {
+        return ;
     }
 }
 
@@ -468,10 +495,13 @@ void Server::eventLoop() {
         for (int i = 0; i < n; i++) {
             int fd = events[i].data.fd;
 
-            if (server_by_fd.count(fd)) {
+          if (server_by_fd.count(fd)) {
                 handleNewConnection(fd);
             } else if (_cgiByFd.count(fd)) {
                 handleCgiEvent(fd, events[i].events);
+            } else if (events[i].events & EPOLLERR) {
+                removeClient(fd);
+                continue;
             }
             else {
                 if (events[i].events & EPOLLIN) {
@@ -496,6 +526,7 @@ void signalHandler(int signum) {
 
 void Server::start() {
     signal(SIGCHLD, signalHandler);
+    signal(SIGPIPE, SIG_IGN);
     initAllSockets();
     registerSocketsInEpoll();
     eventLoop();

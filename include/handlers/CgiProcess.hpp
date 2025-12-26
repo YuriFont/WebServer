@@ -7,6 +7,7 @@
 struct CgiProcess {
     int stdin_fd;
     int stdout_fd;
+    size_t input_offset;
     pid_t pid;
     int client_fd;
 
@@ -19,6 +20,7 @@ struct CgiProcess {
     CgiProcess()
         : stdin_fd(-1),
           stdout_fd(-1),
+          input_offset(0),
           pid(-1),
           client_fd(-1),
           stdout_closed(false),

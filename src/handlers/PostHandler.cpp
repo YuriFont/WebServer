@@ -1,5 +1,6 @@
 #include "../../include/handlers/PostHandler.hpp"
 #include "../../include/utils/Utils.hpp"
+#include "../../include/utils/ErrorPage.hpp"
 
 std::map<std::string, std::string> PostHandler::_types;
 
@@ -28,6 +29,16 @@ PostHandler::~PostHandler() {
 
 void PostHandler::handleData(const std::string& chunk) {
 
+    if (_request.isChunked()) {
+        if (chunk.size() > _config.client_max_body_size) {
+            _response = new HttpResponse();
+            _response->setStatus(413);
+            _response->setBody(ErrorPage::build(413));
+            _isFinish = true;
+            setIsError(true);
+            return;
+        }
+    }
     if (_bodyProcessor == NULL) {
         _bodyProcessor = BodyProcessorFactory::createBodyProcessor(_config, _location, _request);
     }
