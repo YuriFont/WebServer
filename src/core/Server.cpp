@@ -5,6 +5,7 @@
 #include "../../include/handlers/RequestHandler.hpp"
 #include "../../include/config/Config.hpp"
 #include "../../include/utils/Utils.hpp"
+#include "../../include/utils/ErrorPage.hpp"
 
 Server::Server(const Config &config) : _config(config), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
 
@@ -278,15 +279,51 @@ void Server::startCgiForClient(Client& client) {
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
 
     CgiProcess* cgi = cgiHandler->startCgi();
-    
+
+    int errorCode = 0;
+    switch (cgi->status)
+    {
+        case CgiProcess::CGI_FORBIDDEN:
+            errorCode = 403;
+            break;
+        case CgiProcess::CGI_NOT_FOUND:
+            errorCode = 404;
+            break;
+        case CgiProcess::CGI_INTERNAL_ERROR:
+            errorCode = 500;
+            break;
+        case CgiProcess::CGI_OK:
+            errorCode = 0;
+            break;
+    }
+
+    if (errorCode != 0) {
+
+        HttpResponse response;
+
+        response.setStatus(errorCode);
+        response.setConnectionClose(true);
+        response.setBody(ErrorPage::build(errorCode));
+        response.setContentType("text/html");
+        client.setCloseConnection(response.isConnectionClose());
+        client.setCodeResponseStatus(response.getStatusResponse());
+        client.setResponse(response.toString());
+        delete cgi;
+        epoll_event& event = client.getDataEvent();
+        event.events = EPOLLOUT;
+        // Modificar o cliente para poder escrever no socket
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+        return ;
+    }
+        
     if (_cgiByFd.find(cgi->stdin_fd) != _cgiByFd.end() || _cgiByFd.find(cgi->stdout_fd) != _cgiByFd.end()) {
         std::cout << "Pipe já registrado =================================" << std::endl;
     }
     _cgiByFd[cgi->stdin_fd]  = cgi;
     _cgiByFd[cgi->stdout_fd] = cgi;
-    
+        
     epoll_add(cgi->stdout_fd, EPOLLIN);
-    
+        
     if (!cgi->input.empty()) {
         epoll_add(cgi->stdin_fd, EPOLLOUT);
     }
@@ -338,22 +375,19 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
         return;
     }
 
+    HttpResponse response;
+
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
-
-    HttpResponse response = cgiHandler->responseHTTP(cgi->output);
-
-
+    
+    response = cgiHandler->responseHTTP(cgi->output);
+    
+    
     client.setCloseConnection(response.isConnectionClose());
     client.setCodeResponseStatus(response.getStatusResponse());
-
+    
     client.setResponse(response.toString());
-
-
-    epoll_event& event = client.getDataEvent();
-    event.events = EPOLLOUT; 
-    // Modificar o cliente para poder escrever no socket
-    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
-
+    
+    
     // 3️⃣ Cleanup
     if (!cgi->stdin_closed) {
         cgi->stdin_closed = true;
@@ -363,6 +397,12 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
         cgi->stdout_closed = true;
         removeCgiFd(cgi->stdout_fd);
     }
+
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT;
+    // Modificar o cliente para poder escrever no socket
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+
     delete cgi;
 }
 
