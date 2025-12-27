@@ -23,6 +23,7 @@ class Client {
         ssize_t bytesSend;
         std::string _responseStatus;
         bool closeConnection;
+        bool _bodyDelivered;
         
         
     public:
@@ -57,4 +58,6 @@ class Client {
         ssize_t& getBytesSend();
         void setCloseConnection(const bool& connection);
         const bool& getCloseConnection();
+        void setBodyDelivered(const bool& value);
+        const bool& isBodyDelivered();
 };

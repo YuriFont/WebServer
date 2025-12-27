@@ -1,14 +1,13 @@
 #include "../../include/core/Client.hpp"
 #include "../../include/utils/Utils.hpp"
 
-Client::Client(): contentLength(0), bytesSend(0), handler(NULL)  {
+Client::Client(): contentLength(0), bytesSend(0), closeConnection(false), _bodyDelivered(false), handler(NULL)  {
     this->client_fd = -1;
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
     this->_isChunked = false;
     this->_responseStatus = -1;
-    this->closeConnection = false;
 };
 
 Client::~Client() {
@@ -51,6 +50,7 @@ Client::Client(const int& client_fd): contentLength(0), bytesSend(0), handler(NU
     this->_isChunked = false;
     this->_responseStatus = -1;
     this->closeConnection = false;
+    this->_bodyDelivered = false;
 };
 
 Client::Client(const Client& client): handler(NULL) {
@@ -70,8 +70,13 @@ Client& Client::operator=(const Client& other) {
         this->isHeadersParsed = other.isHeadersParsed;
         this->event = other.event;
         this->_isChunked = other._isChunked;
+        this->_chunkedDecoder = other._chunkedDecoder;
+        this->_response = other._response;
         this->request = other.request;
         this->bytesSend = other.bytesSend;
+        this->_responseStatus = other._responseStatus;
+        this->closeConnection = other.closeConnection;
+        this->_bodyDelivered = other._bodyDelivered;
         if (other.handler != NULL) {
             this->handler = other.handler->clone();
         }
@@ -99,7 +104,15 @@ void Client::addBuffer(const std::string& request) {
             this->isHeadersReceived = true;
             this->request.parser();
             this->contentLength = this->request.getContentLength();
-            // std::cout << this->request.getBuffer() << std::endl;
+            std::string conection = this->request.getHeader("Connection");
+            if (!conection.empty()) {
+                // std::cout << "Testando conexão fechada" << std::endl;
+                if (conection == "close"){
+                    // std::cout << "Fechando conexão" << std::endl;
+                    setCloseConnection(true);
+                }
+            }
+            // std::cout << this->request.getBody() << std::endl;
             // std::cout << this->request.getMethod() << " " << this->request.getPath() << " " << this->request.getHttpVersion() << std::endl;
             this->isHeadersParsed = true;
         }
@@ -142,6 +155,11 @@ void Client::cleanData() {
     this->_responseStatus = -1;
     this->bytesSend = 0;
     this->request.clearAllData();
+    this->_bodyDelivered = false;
+    if (this->handler != NULL) {
+        delete this->handler;
+        this->handler = NULL;
+    }
 }
 
 void Client::setChunked(bool value){
@@ -170,4 +188,12 @@ const std::string& Client::getChunkedBody() const {
 
 std::string Client::extractBodyAfterHeaders() {
         return request.extractBodyAfterHeaders();
-    }
+}
+
+void Client::setBodyDelivered(const bool& value) {
+    this->_bodyDelivered = value;
+}
+
+const bool& Client::isBodyDelivered() {
+    return this->_bodyDelivered;
+};
