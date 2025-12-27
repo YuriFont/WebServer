@@ -112,6 +112,13 @@ HttpResponse& GetHandler::process(const HttpRequest &request, const Location &lo
     //Configurar header básicos da resposta
     _response->setHttpVersion(request.getHttpVersion());
 
+    if (!Utils::validTraversalPath(path, _location.getRoot())) {
+        _response->setStatus(403);
+        _response->setBody(ErrorPage::build(403));
+        _response->setContentType("text/html");
+        return *_response;
+    }
+
     //Verificar se o arquivo/dir existe
     if (stat(path.c_str(), &info) != 0){
         //Arquivo não encontrado

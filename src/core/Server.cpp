@@ -5,8 +5,9 @@
 #include "../../include/handlers/RequestHandler.hpp"
 #include "../../include/config/Config.hpp"
 #include "../../include/utils/Utils.hpp"
+#include "../../include/utils/ErrorPage.hpp"
 
-Server::Server(const Config &config) : _config(config), _running(true) {}
+Server::Server(const Config &config) : _config(config), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
 
 Server::~Server() {
     for (size_t i = 0; i < server_fds.size(); i++) {
@@ -71,6 +72,7 @@ void Server::handleNewConnection(int server_fd) {
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &clients[client_fd].getDataEvent());
     std::cout << GREEN << "New client in the server " << server_by_fd[server_fd].getPort() << RESET << std::endl;
     logClienteConected(client_fd);
+    updateClientActivity(client_fd);
 }
 
 const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &request) {
@@ -208,7 +210,6 @@ void Server::epoll_add(int fd, uint32_t events) {
 }
 
 void Server::handleClientRequest(int client_fd) {
-    
     char buffer[2048];
     int bytes = 0;
 
@@ -231,6 +232,7 @@ void Server::handleClientRequest(int client_fd) {
         else
             prepareResponse(client_fd, client);
     }
+    updateClientActivity(client_fd);
 }
 
 void Server::sendResponseClient(int client_fd) {
@@ -256,6 +258,7 @@ void Server::sendResponseClient(int client_fd) {
         removeMethodHandler(client);
         finalizeClientConnection(client_fd, client, client.getCloseConnection());
     }
+    updateClientActivity(client_fd);
 };
 
 void Server::handleCgiWrite(int fd) {
@@ -296,15 +299,51 @@ void Server::startCgiForClient(Client& client) {
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
 
     CgiProcess* cgi = cgiHandler->startCgi();
-    
+
+    int errorCode = 0;
+    switch (cgi->status)
+    {
+        case CgiProcess::CGI_FORBIDDEN:
+            errorCode = 403;
+            break;
+        case CgiProcess::CGI_NOT_FOUND:
+            errorCode = 404;
+            break;
+        case CgiProcess::CGI_INTERNAL_ERROR:
+            errorCode = 500;
+            break;
+        case CgiProcess::CGI_OK:
+            errorCode = 0;
+            break;
+    }
+
+    if (errorCode != 0) {
+
+        HttpResponse response;
+
+        response.setStatus(errorCode);
+        response.setConnectionClose(true);
+        response.setBody(ErrorPage::build(errorCode));
+        response.setContentType("text/html");
+        client.setCloseConnection(response.isConnectionClose());
+        client.setCodeResponseStatus(response.getStatusResponse());
+        client.setResponse(response.toString());
+        delete cgi;
+        epoll_event& event = client.getDataEvent();
+        event.events = EPOLLOUT;
+        // Modificar o cliente para poder escrever no socket
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+        return ;
+    }
+        
     if (_cgiByFd.find(cgi->stdin_fd) != _cgiByFd.end() || _cgiByFd.find(cgi->stdout_fd) != _cgiByFd.end()) {
         std::cout << "Pipe já registrado =================================" << std::endl;
     }
     _cgiByFd[cgi->stdin_fd]  = cgi;
     _cgiByFd[cgi->stdout_fd] = cgi;
-    
+        
     epoll_add(cgi->stdout_fd, EPOLLIN);
-    
+        
     if (!cgi->input.empty()) {
         epoll_add(cgi->stdin_fd, EPOLLOUT);
     }
@@ -356,22 +395,19 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
         return;
     }
 
+    HttpResponse response;
+
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
-
-    HttpResponse response = cgiHandler->responseHTTP(cgi->output);
-
-
+    
+    response = cgiHandler->responseHTTP(cgi->output);
+    
+    
     client.setCloseConnection(response.isConnectionClose());
     client.setCodeResponseStatus(response.getStatusResponse());
-
+    
     client.setResponse(response.toString());
-
-
-    epoll_event& event = client.getDataEvent();
-    event.events = EPOLLOUT; 
-    // Modificar o cliente para poder escrever no socket
-    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
-
+    
+    
     // 3️⃣ Cleanup
     if (!cgi->stdin_closed) {
         cgi->stdin_closed = true;
@@ -381,6 +417,12 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
         cgi->stdout_closed = true;
         removeCgiFd(cgi->stdout_fd);
     }
+
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT;
+    // Modificar o cliente para poder escrever no socket
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+
     delete cgi;
 }
 
@@ -438,6 +480,7 @@ void Server::handleCgiEvent(int fd, uint32_t ev) {
     if ((ev & (EPOLLIN | EPOLLHUP)) && fd == cgi->stdout_fd) {
         handleCgiRead(fd);
     }
+    updateClientActivity(fd);
 }
 
 void Server::eventLoop() {
@@ -461,6 +504,7 @@ void Server::eventLoop() {
                 }
             }
         }
+        checkClientTimeouts();
     }
 }
 
@@ -471,6 +515,25 @@ void Server::shutdown() {
 void signalHandler(int signum) {
     (void)signum;
     waitpid(-1, NULL, WNOHANG);
+}
+
+void Server::updateClientActivity(int fd) {
+    clients[fd].setLastActivity(time(NULL));
+}
+
+void Server::checkClientTimeouts() {
+    time_t now = time(NULL);
+    std::map<int, Client>::iterator it = clients.begin();
+
+    while (it != clients.end()) {
+        std::map<int, Client>::iterator current = it++;
+
+        if (now - current->second.getLastActivity() > _CLIENT_TIMEOUT) {
+            int fd = current->first;
+            std::cout << "[FD " << fd  << "] " << RED << "Connection timeout" << RESET << std::endl;
+            removeClient(fd);
+        }
+    }
 }
 
 void Server::start() {

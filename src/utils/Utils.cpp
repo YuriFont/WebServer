@@ -98,6 +98,16 @@ std::string Utils::normalizePath(const std::string &path)
     return result;
 }
 
+bool Utils::validTraversalPath(const std::string &rawPath, const std::string &rootPath) {
+
+    std::string path = Utils::normalizePath(rawPath);
+    std::string root = Utils::normalizePath(rootPath);
+
+    if (path.compare(0, root.size(), root) != 0)
+        return false;
+    return true;
+}
+
 std::string Utils::getContentType(const std::string& path) {
     if (path.find(".html") != std::string::npos) return "text/html";
     if (path.find(".css") != std::string::npos) return "text/css";
