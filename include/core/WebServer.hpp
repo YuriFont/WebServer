@@ -31,4 +31,6 @@
 #define MAGENTA "\033[35m"
 #define CYAN    "\033[36m"
 
+#define CLIENT_TIMEOUT 30
+
 #endif

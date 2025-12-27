@@ -6,7 +6,7 @@
 #include "../../include/config/Config.hpp"
 #include "../../include/utils/Utils.hpp"
 
-Server::Server(const Config &config) : _config(config), _running(true), _CLIENT_TIMEOUT(30) {}
+Server::Server(const Config &config) : _config(config), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
 
 Server::~Server() {
     for (size_t i = 0; i < server_fds.size(); i++) {
