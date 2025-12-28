@@ -13,10 +13,15 @@ class ChunkedDecoder {
 
     private:
         enum State {
-            READ_SIZE, //0
-            READ_DATA, //1
-            READ_CRLF, //2
-            DONE //3
+            READ_SIZE,
+            READ_SIZE_CR,
+            READ_DATA,
+            READ_DATA_CR,
+            READ_DATA_LF,
+            READ_FINAL_CR,
+            READ_FINAL_LF,
+            DONE,
+            ERROR
         };
 
         State _state;
