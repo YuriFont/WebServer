@@ -437,7 +437,7 @@ void Server::removeCgiFd(const int& fd) {
 }
 
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
-
+    
     if (clients.find(cgi->client_fd) == clients.end()) {
         std::cerr << "Erro: CGI finalizou, mas o cliente (fd " << cgi->client_fd << ") já desconectou." << std::endl;
         if (!cgi->stdin_closed) {
@@ -539,8 +539,6 @@ void Server::handleCgiRead(int fd) {
             //remover cliente também ?
             delete cgi;
         }
-        waitpid(cgi->pid, NULL, 0);
-        finalizeCgiResponse(cgi);
     }
 }
 
