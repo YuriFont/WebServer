@@ -1,6 +1,6 @@
 #include "../../include/core/ServerConfig.hpp"
 
-ServerConfig::ServerConfig() {
+ServerConfig::ServerConfig(): hasGlobalCGI(false) {
     this->server_name = "";
     this->ip = "";
     this->port = 0;

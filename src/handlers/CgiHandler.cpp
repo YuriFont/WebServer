@@ -12,7 +12,6 @@ CgiHandler::CgiHandler(const CgiHandler& other): _config(other._config), _reques
     }
 };
 
-
 CgiHandler::~CgiHandler() {
 
     if (_response != NULL) {
@@ -32,8 +31,18 @@ bool CgiHandler::isCgi() const {
 void CgiHandler::handleData(const std::string& chunk) {
 
     _body.append(chunk);
-    if ((int)_body.size() == _request.getContentLength()) {
-        std::cout << "body size: " << _body.size() << " Request length: " << _request.getContentLength() << std::endl;
+    if (!_request.isChunked()){
+        // std::cout << "Tamanho do append de chunck: " << _body.size() << " Tamanh do length:  " << _request.getContentLength() << std::endl;
+        if (_body.size() >= static_cast<size_t>(_request.getContentLength())){
+            _isFinish = true;
+        }
+    }
+    else{
+        // std::cout << "Recebido" << std::endl;
+        // std::cout << _body << std::endl;
+        // std::cout << std::endl;
+        // std::cout << std::endl;
+
         _isFinish = true;
     }
 };
@@ -57,7 +66,7 @@ std::string CgiHandler::getExtensionCgi() {
 HttpResponse& CgiHandler::buildCgiResponse() {
     HttpResponse *resp = new HttpResponse();
 
-    resp->setBody("<h1>deu certo</h1>");
+    resp->setBody("<h1>OK</h1>");
     resp->setStatus(200);
     return *resp;
 };
@@ -79,7 +88,9 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     std::cout << "query:" << request.getQueryString() << std::endl;
     env.push_back("QUERY_STRING=" + request.getQueryString());
     env.push_back("CONTENT_LENGTH=" + Utils::toString(_body.size()));
-    env.push_back("CONTENT_TYPE=" + request.getHeader("Content-Type"));
+    std::string ct = request.getHeader("Content-Type");
+    if (!ct.empty())
+        env.push_back("CONTENT_TYPE=" + request.getHeader("Content-Type"));
     env.push_back("GATEWAY_INTERFACE=CGI/1.1");
     env.push_back("SERVER_PROTOCOL=" + request.getHttpVersion());
     env.push_back("SERVER_SOFTWARE=WebServ/1.0");
@@ -87,6 +98,30 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     env.push_back("SERVER_PORT=8080");
     env.push_back("PATH_INFO=" + request.getPath());
     env.push_back("REDIRECT_STATUS=200"); //Tem que puxar o retorno do processo aqui
+
+    std::map<std::string, std::string> headers = request.getHeaders();
+
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin();
+        it != headers.end(); ++it) {
+
+        std::string key = it->first;
+        std::string value = it->second;
+
+        // Ignorar os que já são tratados
+        if (key == "Content-Type" || key == "Content-Length")
+            continue;
+
+        std::string envKey = "HTTP_";
+
+        for (size_t i = 0; i < key.size(); ++i) {
+            if (key[i] == '-')
+                envKey += '_';
+            else
+                envKey += std::toupper(key[i]);
+        }
+
+        env.push_back(envKey + "=" + value);
+    }
     return env;
 }
 
@@ -142,7 +177,8 @@ HttpResponse& CgiHandler::responseHTTP(const std::string &output)
         headerEnd = output.find("\n\n");
         sepLen = 2;
     }
-    _response = new HttpResponse();
+    if (_response == NULL)
+        _response = new HttpResponse();
 
     if (headerEnd == std::string::npos) {
         _response->setStatus(500);

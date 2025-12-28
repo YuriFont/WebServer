@@ -1,7 +1,0 @@
-[32m[Config]: Config file opened successfully.[0m
-[32m[Config]: Config file parsed successfully.[0m
-Server listening on 127.0.0.1:8084
-[32mNew client in the server 8084[0m
-[FD 5] (+) Connection established
-[FD 5] <--- Request: GET /oldpage HTTP/1.1
-[FD 5] ---> GET /oldpage (302 Found) - 90 bytes

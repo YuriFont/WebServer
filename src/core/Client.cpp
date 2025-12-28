@@ -1,17 +1,16 @@
 #include "../../include/core/Client.hpp"
 #include "../../include/utils/Utils.hpp"
 
-Client::Client(): contentLength(0), bytesSend(0), handler(NULL)  {
+Client::Client(): contentLength(0), bytesSend(0), closeConnection(false), _bodyDelivered(false), handler(NULL)  {
     this->client_fd = -1;
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+    this->_isChunked = false;
     this->_responseStatus = -1;
-    this->closeConnection = false;
 };
 
 Client::~Client() {
-    
     if (this->handler != NULL) {
         delete this->handler;
     };
@@ -48,19 +47,17 @@ Client::Client(const int& client_fd): contentLength(0), bytesSend(0), handler(NU
     this->event.events = EPOLLIN;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
-
+    this->_isChunked = false;
     this->_responseStatus = -1;
     this->closeConnection = false;
+    this->_bodyDelivered = false;
 };
 
 Client::Client(const Client& client): handler(NULL) {
-
     *this = client;
-    
 };
 
 Client& Client::operator=(const Client& other) {
-
     if (this->handler != NULL) {
         delete this->handler;
         this->handler = NULL;
@@ -72,8 +69,14 @@ Client& Client::operator=(const Client& other) {
         this->isHeadersReceived = other.isHeadersReceived;
         this->isHeadersParsed = other.isHeadersParsed;
         this->event = other.event;
+        this->_isChunked = other._isChunked;
+        this->_chunkedDecoder = other._chunkedDecoder;
+        this->_response = other._response;
         this->request = other.request;
         this->bytesSend = other.bytesSend;
+        this->_responseStatus = other._responseStatus;
+        this->closeConnection = other.closeConnection;
+        this->_bodyDelivered = other._bodyDelivered;
         if (other.handler != NULL) {
             this->handler = other.handler->clone();
         }
@@ -94,7 +97,6 @@ const int& Client::getClienteFd() const {
 };
 
 void Client::addBuffer(const std::string& request) {
-
     this->request.appendBuffer(request);
     if (!this->isHeadersReceived) {
         if (this->request.getBuffer().find("\r\n\r\n") != std::string::npos || this->request.getBuffer().find("\n\n") != std::string::npos) {
@@ -102,7 +104,15 @@ void Client::addBuffer(const std::string& request) {
             this->isHeadersReceived = true;
             this->request.parser();
             this->contentLength = this->request.getContentLength();
-            // std::cout << this->request.getBuffer() << std::endl;
+            std::string conection = this->request.getHeader("Connection");
+            if (!conection.empty()) {
+                // std::cout << "Testando conexão fechada" << std::endl;
+                if (conection == "close"){
+                    // std::cout << "Fechando conexão" << std::endl;
+                    setCloseConnection(true);
+                }
+            }
+            // std::cout << this->request.getBody() << std::endl;
             // std::cout << this->request.getMethod() << " " << this->request.getPath() << " " << this->request.getHttpVersion() << std::endl;
             this->isHeadersParsed = true;
         }
@@ -110,11 +120,8 @@ void Client::addBuffer(const std::string& request) {
 };
 
 void Client::addBody(const std::string& body) {
-
     this->request.appendBody(body);
 };
-
-
 
 bool Client::isAllHeaders() {
     return this->isHeadersReceived;
@@ -138,17 +145,58 @@ HttpRequest& Client::getRequest() {
 };
 
 void Client::cleanData() {
-
     this->contentLength = 0;
     this->isHeadersReceived = false;
     this->isHeadersParsed = false;
+    this->_isChunked = false;
+    _chunkedDecoder.reset();
     this->_response.erase();
     this->closeConnection = false;
     this->_responseStatus = -1;
     this->bytesSend = 0;
     this->request.clearAllData();
+    this->_bodyDelivered = false;
+    if (this->handler != NULL) {
+        delete this->handler;
+        this->handler = NULL;
+    }
 }
 
+void Client::setChunked(bool value){
+    _isChunked = value;
+}
+
+bool Client::isChunked() const {
+    return _isChunked;
+}
+
+void Client::initChunkedDecoder() {
+    _chunkedDecoder.reset();
+}
+
+void Client::feedChunked(const char* data, size_t len) {
+    _chunkedDecoder.feed(data, len);
+}
+
+bool Client::isChunkedFinished() const {
+    return _chunkedDecoder.isFinished();
+}
+
+const std::string& Client::getChunkedBody() const {
+    return _chunkedDecoder.getBody();
+}
+
+std::string Client::extractBodyAfterHeaders() {
+        return request.extractBodyAfterHeaders();
+}
+
+void Client::setBodyDelivered(const bool& value) {
+    this->_bodyDelivered = value;
+}
+
+const bool& Client::isBodyDelivered() {
+    return this->_bodyDelivered;
+};
 time_t  Client::getLastActivity() const {
     return _lastActivity;
 }

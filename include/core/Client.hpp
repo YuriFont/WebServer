@@ -5,6 +5,7 @@
 
 #include "../http/HttpRequest.hpp"
 #include "../interfaces/IMethodHandler.hpp"
+#include "../bodyProcessor/ChunkedDecoder.hpp"
 
 class Client {
 
@@ -14,12 +15,15 @@ class Client {
         size_t contentLength;
         bool isHeadersReceived;
         bool isHeadersParsed;
+        bool _isChunked;
         epoll_event event;
         HttpRequest request;
+        ChunkedDecoder _chunkedDecoder;
         std::string _response;
         ssize_t bytesSend;
         std::string _responseStatus;
         bool closeConnection;
+        bool _bodyDelivered;
         time_t _lastActivity;
         
     public:
@@ -43,10 +47,19 @@ class Client {
         size_t getLenBody();
         void eraseBody();
         void cleanData();
+        void setChunked(bool value);
+        bool isChunked() const;
+        void initChunkedDecoder();
+        void feedChunked(const char* data, size_t len);
+        bool isChunkedFinished() const;
+        const std::string& getChunkedBody() const;
+        std::string extractBodyAfterHeaders();
         void addBytesSend(ssize_t& bytes);
         ssize_t& getBytesSend();
         void setCloseConnection(const bool& connection);
         const bool& getCloseConnection();
+        void setBodyDelivered(const bool& value);
+        const bool& isBodyDelivered();
         time_t  getLastActivity() const;
         void    setLastActivity(time_t t);
 };
