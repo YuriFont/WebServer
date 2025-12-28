@@ -480,11 +480,6 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
     
     client.setResponse(response.toString());
 
-    epoll_event& event = client.getDataEvent();
-    event.events = EPOLLOUT; 
-    // Modificar o cliente para poder escrever no socket
-    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
-
     // Cleanup
     if (!cgi->stdin_closed) {
         cgi->stdin_closed = true;
@@ -546,18 +541,6 @@ void Server::handleCgiRead(int fd) {
         }
         waitpid(cgi->pid, NULL, 0);
         finalizeCgiResponse(cgi);
-    } else {
-    
-        if (!cgi->stdin_closed) {
-            cgi->stdin_closed = true;
-            removeCgiFd(cgi->stdin_fd);
-        }
-        if (!cgi->stdout_closed) {
-            cgi->stdout_closed = true;
-            removeCgiFd(cgi->stdout_fd);
-        }
-        //remover cliente também ?
-        delete cgi;
     }
 }
 

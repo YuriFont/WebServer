@@ -2,9 +2,6 @@
 #include "../../include/utils/Utils.hpp"
 #include "../../include/utils/ErrorPage.hpp"
 
-std::map<std::string, std::string> PostHandler::_types;
-
-
 PostHandler::PostHandler(const ServerConfig& config, const HttpRequest& request, const Location& location): _config(config), _request(request), _location(location), _response(NULL), _bodyProcessor(NULL), _isFinish(false) {
 
 };

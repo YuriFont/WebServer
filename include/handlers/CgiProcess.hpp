@@ -30,9 +30,9 @@ struct CgiProcess {
     CgiProcess()
         : stdin_fd(-1),
           stdout_fd(-1),
-          input_offset(0),
           pid(-1),
           client_fd(-1),
+          input_offset(0),
           stdout_closed(false),
           stdin_closed(false),
           status(CGI_OK) {}
