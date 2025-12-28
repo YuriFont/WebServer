@@ -24,7 +24,7 @@ class Client {
         std::string _responseStatus;
         bool closeConnection;
         bool _bodyDelivered;
-        
+        time_t _lastActivity;
         
     public:
         
@@ -60,4 +60,6 @@ class Client {
         const bool& getCloseConnection();
         void setBodyDelivered(const bool& value);
         const bool& isBodyDelivered();
+        time_t  getLastActivity() const;
+        void    setLastActivity(time_t t);
 };

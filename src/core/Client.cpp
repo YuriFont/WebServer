@@ -197,3 +197,10 @@ void Client::setBodyDelivered(const bool& value) {
 const bool& Client::isBodyDelivered() {
     return this->_bodyDelivered;
 };
+time_t  Client::getLastActivity() const {
+    return _lastActivity;
+}
+
+void    Client::setLastActivity(time_t t) {
+    _lastActivity = t;
+}

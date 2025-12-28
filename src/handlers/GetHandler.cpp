@@ -59,10 +59,15 @@ void GetHandler::isDir(const std::string& path, const HttpRequest &request, cons
         if (stat(indexPath.c_str(), &info) == 0){
             // std::cout << "Achei o arquivo: " <<  indexPath << std::endl;
             std::string body;
-            Utils::readFile(indexPath, body);
-            response.setStatus(200);
-            response.setContentType(Utils::getContentType(indexPath));
-            response.setBody(body);
+            if (Utils::readFile(indexPath, body)) {
+                response.setStatus(200);
+                response.setContentType(Utils::getContentType(indexPath));
+                response.setBody(body);
+            } else {
+                response.setStatus(500); // Internal Server Error
+                response.setConnectionClose(true);
+                response.setBody(ErrorPage::build(500));
+            }
             return ;
         }
     }
@@ -70,10 +75,16 @@ void GetHandler::isDir(const std::string& path, const HttpRequest &request, cons
     //Se houver index.html -> 200 OK
     if (stat(indexPath.c_str(), &info) == 0){
         std::string body;
-        Utils::readFile(indexPath, body);
-        response.setStatus(200);
-        response.setContentType(Utils::getContentType(indexPath));
-        response.setBody(body);
+        if (Utils::readFile(indexPath, body)) {
+            response.setStatus(200);
+            response.setContentType(Utils::getContentType(indexPath));
+            response.setBody(body);
+        }
+        else {
+            response.setStatus(500);
+            response.setConnectionClose(true);
+            response.setBody(ErrorPage::build(500));
+        }
         return ;
     }
     //Se autoindex estiver ativo -> 200 OK (gerar listagem)
@@ -100,6 +111,13 @@ HttpResponse& GetHandler::process(const HttpRequest &request, const Location &lo
 
     //Configurar header básicos da resposta
     _response->setHttpVersion(request.getHttpVersion());
+
+    if (!Utils::validTraversalPath(path, _location.getRoot())) {
+        _response->setStatus(403);
+        _response->setBody(ErrorPage::build(403));
+        _response->setContentType("text/html");
+        return *_response;
+    }
 
     //Verificar se o arquivo/dir existe
     if (stat(path.c_str(), &info) != 0){
