@@ -114,6 +114,9 @@ void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize
     // Sucesso, vamos tratar o buffer continuando com o fluxo atual
     if (bytes > 0) {
         return ;
+    } else if (bytes == 0) {
+        removeClient(client_fd);
+        logClientDesconected(client_fd);
     }
 
     // Se bytes e == 0 o cliente notificou que vai se desconectar
@@ -177,8 +180,9 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
 void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
+    resp.setConnectionClose(client.getCloseConnection());
     client.setResponse(resp.toString());
-    client.setCloseConnection(resp.isConnectionClose());
+    // client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
 
     epoll_event& event = client.getDataEvent();
@@ -188,16 +192,61 @@ void Server::prepareResponse(const int &client_fd, Client& client) {
 }
 
 void Server::addBuffer(Client& client, char* buffer, int& bytes) {
-
+    // Enquanto os headers ainda NÃO foram totalmente recebidos
     if (!client.isAllHeaders()) {
+        // Acumula dados no buffer interno do Client
+        // Aqui ainda estamos lendo APENAS headers HTTP
         client.addBuffer(std::string(buffer, bytes));
+
+        // Se após adicionar esse bloco os headers ficaram completos
         if (client.isAllHeaders()) {
+            // Loga a requisição assim que headers completos existem
             logClienteRequest(client.getClienteFd(), client);
+
+            // Recupera o body que veio junto com os headers
+            std::string remainingBody = client.extractBodyAfterHeaders();
+
+            // Verifica se o framing do corpo é chunked
+            if (client.getRequest().isChunked()) {
+
+                // Marca o Client como chunked
+                // Chunked é ESTADO, não uma decisão pontual
+                client.setChunked(true);
+
+                // Inicializa o decoder de chunked
+                // Esse decoder será responsável por:
+                //  - Ler tamanhos hexadecimais
+                //  - Concatenar os chunks
+                //  - Detectar o chunk final (0\r\n\r\n)
+                client.initChunkedDecoder(); // se existir
+
+                // alimenta o decoder com o resto
+                if (!remainingBody.empty()) {
+                    client.feedChunked(
+                        remainingBody.c_str(),
+                        remainingBody.size()
+                    );
+                }
+            }
         }
-    } else {
-        client.addBody(std::string(buffer, bytes));
     }
-}
+    else {
+        // Headers já foram lidos → agora estamos lidando com o BODY
+
+        // Se a requisição usa Transfer-Encoding: chunked
+        if (client.isChunked() && !client.isChunkedFinished()) {
+
+            // Alimenta o decoder de chunked com dados do socket
+            // O decoder decide quando o corpo está completo
+            // O handler NÃO deve ver chunk framing ex: 4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n
+            client.feedChunked(buffer, bytes);
+        } else {
+            // Corpo normal (Content-Length)
+            // Aqui o body é acumulado diretamente
+            client.addBody(std::string(buffer, bytes));
+        }
+    }
+}  
 
 void Server::epoll_add(int fd, uint32_t events) {
     struct epoll_event ev;
@@ -210,7 +259,8 @@ void Server::epoll_add(int fd, uint32_t events) {
 }
 
 void Server::handleClientRequest(int client_fd) {
-    char buffer[2048];
+    
+    char buffer[8192];
     int bytes = 0;
 
     readClientBuffer(client_fd, buffer, sizeof(buffer), bytes);
@@ -223,10 +273,25 @@ void Server::handleClientRequest(int client_fd) {
         return ;
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
-    client.handler->handleData(client.getRequest().getBody());
-    client.eraseBody();
+    if (client.isChunked()){
+        // std::cout << client.getRequest().getBody() << std::endl;
+        if(!client.isChunkedFinished())
+            return;
+
+        if (!client.isBodyDelivered()) {
+            // std::cout << "Vou setar o body do chuncked, tamanho atual: " << client.getChunkedBody().size() << std::endl;
+            client.getRequest().setBody(client.getChunkedBody());
+            client.handler->handleData(client.getRequest().getBody());
+            client.eraseBody();
+            client.setBodyDelivered(true);
+        }
+    }
+    else {
+        client.handler->handleData(client.getRequest().getBody());
+        client.eraseBody();
+    }
     if (client.handler->isFinished()) {
-        if (client.handler->isCgi()) {
+        if (client.handler->isCgi() && !client.handler->isError()) {
             startCgiForClient(client);
         }
         else
@@ -239,7 +304,11 @@ void Server::sendResponseClient(int client_fd) {
 
     // epoll nos garantiu o EPOLLOUT, então o socket esta disponivel para escrita
     Client& client = clients[client_fd];
-    ssize_t bytesSend = send(client_fd, (client.getResponse().c_str() + client.getBytesSend()),  (client.getLenBody() - client.getBytesSend()), 0);
+    const size_t MAX_SEND = 8192; // ou 4096
+    size_t remaining = client.getLenBody() - client.getBytesSend();
+    size_t toSend = std::min(MAX_SEND, remaining);
+    // std::cout << "Tamanho do corpo a ser enviado: " << client.getLenBody() << " Enviado: " <<  client.getBytesSend() << std::endl;
+    ssize_t bytesSend = send(client_fd, (client.getResponse().data() + client.getBytesSend()),  toSend, 0);
 
     // Falha ao escrever no socket do cliente mesmo epoll nos garantindo que podiamos escrever
     if (bytesSend < 0) {
@@ -251,6 +320,7 @@ void Server::sendResponseClient(int client_fd) {
     // Adicionamos a quantidade de bytes que foram enviados, nem sempre vai ser total então pegamos o retorno do send que diz quantos bytes foram realmente enviados; Também e possivel que seja enviado 0 bytes
     client.addBytesSend(bytesSend);
     if ((size_t)client.getBytesSend() == client.getLenBody()) {
+
         logStatusResponse(client_fd, client);
         epoll_event& event = client.getDataEvent();
         event.events = EPOLLIN;
@@ -266,13 +336,19 @@ void Server::handleCgiWrite(int fd) {
     // Quando entra aqui o epoll nos garantiu que era possivel escrever no pipe
     CgiProcess* cgi = _cgiByFd[fd];
 
-    ssize_t n = write(fd, cgi->input.c_str(), cgi->input.size());
+    // std::cout << "Escrevendo no pipe" << std::endl;
+    const size_t MAX_WRITE = 4096; // PIPE_BUF seguro
+
+    size_t remaining = cgi->input.size() - cgi->input_offset;
+
+    size_t toWrite = std::min(MAX_WRITE, remaining);
+
+
+    ssize_t n = write(fd, (cgi->input.data() + cgi->input_offset), toWrite);
     if (n > 0) {
-        // remover a parte que já foi enviada
-        cgi->input.erase(0, n);
-        // se o input depois da remoção do que foi enviar, então quer dizer que ja enviamos tudo
-        if (cgi->input.empty()) {
-            // fechamos o stdin do processo pois não vamos mais escrever
+        cgi->input_offset += n;
+
+        if (cgi->input_offset == cgi->input.size()) {
             if (!cgi->stdin_closed) {
                 // removemos da lista de interesse do epoll
                 epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
@@ -292,7 +368,6 @@ void Server::handleCgiWrite(int fd) {
         close(fd);
     }
 }
-
 
 void Server::startCgiForClient(Client& client) {
     
@@ -361,10 +436,8 @@ void Server::removeCgiFd(const int& fd) {
     _cgiByFd.erase(fd);
 }
 
-
-
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
-
+    
     if (clients.find(cgi->client_fd) == clients.end()) {
         std::cerr << "Erro: CGI finalizou, mas o cliente (fd " << cgi->client_fd << ") já desconectou." << std::endl;
         if (!cgi->stdin_closed) {
@@ -406,9 +479,8 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
     client.setCodeResponseStatus(response.getStatusResponse());
     
     client.setResponse(response.toString());
-    
-    
-    // 3️⃣ Cleanup
+
+    // Cleanup
     if (!cgi->stdin_closed) {
         cgi->stdin_closed = true;
         removeCgiFd(cgi->stdin_fd);
@@ -467,7 +539,7 @@ void Server::handleCgiRead(int fd) {
             //remover cliente também ?
             delete cgi;
         }
-    } 
+    }
 }
 
 void Server::handleCgiEvent(int fd, uint32_t ev) {
@@ -490,10 +562,13 @@ void Server::eventLoop() {
         for (int i = 0; i < n; i++) {
             int fd = events[i].data.fd;
 
-            if (server_by_fd.count(fd)) {
+          if (server_by_fd.count(fd)) {
                 handleNewConnection(fd);
             } else if (_cgiByFd.count(fd)) {
                 handleCgiEvent(fd, events[i].events);
+            } else if (events[i].events & EPOLLERR) {
+                removeClient(fd);
+                continue;
             }
             else {
                 if (events[i].events & EPOLLIN) {
@@ -538,6 +613,7 @@ void Server::checkClientTimeouts() {
 
 void Server::start() {
     signal(SIGCHLD, signalHandler);
+    signal(SIGPIPE, SIG_IGN);
     initAllSockets();
     registerSocketsInEpoll();
     eventLoop();
