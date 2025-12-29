@@ -19,7 +19,8 @@ HANDLERS =	DeleteHandler.cpp \
 BODYPROCESSOR = RawProcessor.cpp \
 				MultipartProcessor.cpp \
 				UrlEncodedProcessor.cpp \
-				BodyProcessorFactory.cpp
+				BodyProcessorFactory.cpp \
+				ChunkedDecoder.cpp
 
 ABSTRACTS = ABodyProcessor.cpp
 

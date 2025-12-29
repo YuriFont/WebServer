@@ -17,6 +17,7 @@ struct CgiProcess {
     int stdout_fd;
     pid_t pid;
     int client_fd;
+    size_t input_offset;
 
     std::string input;
     std::string output;
@@ -31,6 +32,7 @@ struct CgiProcess {
           stdout_fd(-1),
           pid(-1),
           client_fd(-1),
+          input_offset(0),
           stdout_closed(false),
           stdin_closed(false),
           status(CGI_OK) {}

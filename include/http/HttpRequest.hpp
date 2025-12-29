@@ -15,6 +15,7 @@ class HttpRequest {
         std::map<std::string, std::string> _headers;
         std::string _body;
         std::string _queryString;
+        size_t _contentLength;
 
     public:
 
@@ -26,14 +27,18 @@ class HttpRequest {
         const std::string& getPath() const;
         const std::string& getHttpVersion() const;
         const std::string& getHeader(const std::string &key) const;
+        const std::map<std::string, std::string>& getHeaders() const;
         const std::string& getBody() const;
+        void setBody(const std::string& body);
         const std::string& getQueryString() const;
         const std::string& getBuffer() const;
-        int getContentLength() const;
+        size_t getContentLength() const;
         void appendBuffer(const std::string& buffer);
         void appendBody(const std::string& body);
         void clearAllData();
         void parser();
         void reserveSpaceBody(size_t size);
         void eraseBody();
+        bool isChunked() const;
+        std::string extractBodyAfterHeaders();
 };

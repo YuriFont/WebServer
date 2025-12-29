@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <exception>
+#include <cstdlib>
 
 HttpRequest::HttpRequest() {
 
@@ -59,7 +60,10 @@ void HttpRequest::parser() {
     }
 
     // primeira linha → método, caminho e versão
-    std::stringstream firstLine(lines[0]);
+    int indexFirstLine = 0;
+    if (lines[indexFirstLine].empty())
+        indexFirstLine++;
+    std::stringstream firstLine(lines[indexFirstLine]);
     firstLine >> _method >> _path >> _httpVersion;
 
     // separar path e query string
@@ -72,7 +76,7 @@ void HttpRequest::parser() {
     }
 
     // headers
-    for (size_t i = 1; i < lines.size(); i++) {
+    for (size_t i = indexFirstLine; i < lines.size(); i++) {
         size_t pos = lines[i].find(':');
         if (pos == std::string::npos) continue;
 
@@ -81,6 +85,16 @@ void HttpRequest::parser() {
         _headers[key] = value;
     }
 
+    std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
+    size_t value;
+    if (it == _headers.end())
+        value = 0;
+    else {
+        std::string valueStr = it->second;
+        unsigned long ret = std::strtoul(valueStr.c_str(), NULL, 10);
+        value = static_cast<size_t>(ret);
+    }
+    this->_contentLength = value;
 
 
     if (this->getContentLength() > 0) {
@@ -122,17 +136,26 @@ const std::string& HttpRequest::getBody() const {
     return this->_body;
 };
 
+void HttpRequest::setBody(const std::string& body) {
+    _body = body;
+}
+
 const std::string& HttpRequest::getQueryString() const {
     return this->_queryString;
 };
 
-int HttpRequest::getContentLength() const {
-    std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
-    if (it == _headers.end())
-        return 0;
-    std::string value = it->second;
-    return std::atoi(value.c_str());
+size_t HttpRequest::getContentLength() const {
+    return this->_contentLength;
 }
+
+// size_t HttpRequest::getContentLength() const {
+//     std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
+//     if (it == _headers.end())
+//         return 0;
+
+//     return static_cast<size_t>(std::strtoull(it->second.c_str(), NULL, 10));
+// }
+
 
 void HttpRequest::reserveSpaceBody(size_t size) {
     this->_body.reserve(size);
@@ -157,4 +180,31 @@ void HttpRequest::clearAllData() {
     this->_headers.erase(this->_headers.begin(), this->_headers.end());
     this->_body.erase();
     this->_queryString.erase();
+    this->_contentLength = 0;
+};
+
+bool HttpRequest::isChunked() const {
+    std::string te = Utils::toLower(getHeader("Transfer-Encoding"));
+    return te.find("chunked") != std::string::npos;
+}
+
+std::string HttpRequest::extractBodyAfterHeaders() {
+    size_t pos = _buffer.find("\r\n\r\n");
+    if (pos == std::string::npos)
+        return "";
+
+    size_t bodyStart = pos + 4;
+
+    // Tudo depois dos headers já é body
+    std::string body = _buffer.substr(bodyStart);
+
+    // Mantém no buffer apenas os headers
+    _buffer.erase(bodyStart);
+
+    return body;
+}
+
+
+const std::map<std::string, std::string>& HttpRequest::getHeaders() const {
+    return this->_headers;
 };
