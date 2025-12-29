@@ -5,7 +5,13 @@ std::map<std::string, std::string> RawProcessor::_types;
 
 RawProcessor::RawProcessor(const ServerConfig& config, const Location& location, const HttpRequest& request) : ABodyProcessor::ABodyProcessor(config), _location(location), _bytesReceived(0), _response(NULL) {
     initTypes();
-    _contentType = request.getHeader("Content-Type");
+    std::string type = request.getHeader("Content-Type");
+
+    size_t splitType = type.find(";");
+    if (splitType != std::string::npos) {
+        type = type.substr(0, splitType);
+    }
+    _contentType = type;
     _contentLength = request.getContentLength();
 };
 
@@ -61,6 +67,7 @@ void RawProcessor::handleChunk(const std::string& chunk) {
         _response = new HttpResponse();
         _isFinished = true;
         _response->setStatus(413);
+        _response->setConnectionClose(true);
         return;
     }
     if (_fileName.empty()) {

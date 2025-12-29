@@ -94,8 +94,22 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     env.push_back("GATEWAY_INTERFACE=CGI/1.1");
     env.push_back("SERVER_PROTOCOL=" + request.getHttpVersion());
     env.push_back("SERVER_SOFTWARE=WebServ/1.0");
-    env.push_back("SERVER_NAME=localhost");
-    env.push_back("SERVER_PORT=8080");
+
+    std::string host = request.getHeader("Host");
+    // Separação simples de host:port seria ideal, mas passar no SERVER_NAME ajuda
+    if (!host.empty()){
+        size_t endHost = host.find(":");
+
+        if (endHost != std::string::npos) {
+            host = host.substr(0, endHost);
+        }
+        env.push_back("SERVER_NAME=" + host);
+    }
+    else 
+        env.push_back("SERVER_NAME=localhost");
+
+    std::string port = Utils::toString(_config.getPort());
+    env.push_back("SERVER_PORT=" + port);
     env.push_back("PATH_INFO=" + request.getPath());
     env.push_back("REDIRECT_STATUS=200"); //Tem que puxar o retorno do processo aqui
 

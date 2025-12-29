@@ -91,17 +91,18 @@ void Config::_parseListen(std::istringstream &iss, ServerConfig &server) {
 
     addressPort = std::atoi(portStr.c_str());
     addressIP = Utils::trim(addressIP);
+    addressIP = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
 
     if (!_IPValidation(addressIP))
         throw std::runtime_error("Invalid IP address: " + addressIP + " in " + _filePath);
     if (!_PortValidation(addressPort))
         throw std::runtime_error("Invalid port number: " + Utils::toString(addressPort) + " in " + _filePath);
-    if (!_repeatedPortValidation(addressPort))
+    if (!_repeatedPortValidation(addressPort, addressIP))
         throw std::runtime_error("This door is already in use: " + Utils::toString(addressPort) + " in " + _filePath);
-    if (_isPortInUseOnLocalhost(addressPort))
+    if (_isPortInUseOnLocalhost(addressPort, addressIP))
         throw std::runtime_error("This door is already in use: " + Utils::toString(addressPort) + " in " + _filePath);
 
-    server.ip = (addressIP == "localhost") ? "127.0.0.1" : addressIP;
+    server.ip = addressIP;
     server.port = addressPort;
 }
 
@@ -144,15 +145,15 @@ bool Config::_PortValidation(int addressPort) {
     return true;
 }
 
-bool Config::_repeatedPortValidation(const int addressPort) {
+bool Config::_repeatedPortValidation(const int addressPort, const std::string& addressIP) {
     for (std::vector<ServerConfig>::const_iterator it = servers.begin(); it != servers.end(); ++it) {
-        if (it->getPort() == addressPort)
+        if ((it->getIp() == addressIP)  && (it->getPort() == addressPort))
             return false;
     }
     return true;
 }
 
-bool Config::_isPortInUseOnLocalhost(int port) {
+bool Config::_isPortInUseOnLocalhost(int port, const std::string& addressIP) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
         throw std::runtime_error("socket() failed");
@@ -163,7 +164,7 @@ bool Config::_isPortInUseOnLocalhost(int port) {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
 
-    if (inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, addressIP.c_str(), &addr.sin_addr) <= 0) {
         close(sockfd);
         throw std::runtime_error("inet_pton() failed");
     }
@@ -173,6 +174,13 @@ bool Config::_isPortInUseOnLocalhost(int port) {
     if ((bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) && (errno == EADDRINUSE))
         inUse = true;
 
+    // essa flag verifica se endereço está disponível na maquina local
+    if (errno == EADDRNOTAVAIL) {
+        inUse = true;
+        close(sockfd);
+        throw std::runtime_error("This ip address is not valid: " + addressIP +  " in " + _filePath);
+    }
+    
     close(sockfd);
 
     return inUse;

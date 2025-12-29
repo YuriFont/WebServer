@@ -113,12 +113,34 @@
 
     <section>
         <h2>5. Body Size Limit (413)</h2>
-        <p>Configure o <code>client_max_body_size</code> para algo baixo (ex: 10 bytes) e tente enviar.</p>
+        <p>Configure o <code>client_max_body_size</code> para algo baixo (ex: 100 bytes) e tente enviar.</p>
         <div>
-            <input type="text" id="bigTextPayload" value="Texto maior que o limite permitido." style="width: 80%;">
+            <input type="text" id="bigTextPayload" value="Texto maior que o limite permitido. Este é um texto simples com cerca de cem bytes. Ele serve para demonstrar o tamanho em bytes para fins de teste ou aprendizado, mostrando como caracteres básicos se encaixam em um limite de tamanho definido.
+" style="width: 80%;">
             <button class="warning" onclick="testBodySize()">Testar Limite (POST)</button>
         </div>
         <div id="bodySizeResult" class="response-box">Status: Aguardando...</div>
+    </section>
+
+    <section>
+        <h2>6. Configuration & Routes Check</h2>
+        <div class="grid">
+            <div>
+                <p><strong>Navegação entre Portas:</strong></p>
+                <ul>
+                    <li><a target="_blank" href="http://localhost:8080">Servidor A (Porta 8080)</a></li>
+                    <li><a target="_blank" href="http://localhost:8081">Servidor B (Porta 8081)</a></li>
+                    <li><a target="_blank" href="http://localhost:8082">Servidor C (Porta 8082)</a></li>
+                </ul>
+            </div>
+            <div>
+                <p><strong>Teste de Método Não Permitido (405):</strong></p>
+                <p>Tentar POST em rota que só aceita GET.</p>
+                <code>/directory {Aceita somente get}</code>
+                <button class="warning" onclick="testMethodNotAllowed()">Testar POST em /directory</button>
+                <div id="methodResult" class="response-box">Aguardando...</div>
+            </div>
+        </div>
     </section>
 
     <script>
@@ -213,6 +235,21 @@
             } catch (err) {
                 output.innerText = "Erro (Possível conexão fechada pelo servidor): " + err.message;
             }
+        }
+
+        async function testMethodNotAllowed() {
+            const output = document.getElementById('methodResult');
+            try {
+                // Certifique-se de ter uma rota no config que negue POST
+                const response = await fetch('/directory/', { method: 'POST', body: "teste" }); 
+                output.innerText = `Status: ${response.status} ${response.statusText}`;
+                if (response.status === 405) {
+                    output.style.color = "#0f0"; 
+                    output.innerText += " (Sucesso: Método recusado corretamente)";
+                } else {
+                    output.style.color = "orange";
+                }
+            } catch (err) { output.innerText = err.message; }
         }
     </script>
 </body>
