@@ -1,69 +1,219 @@
-<!doctype html>
-<html lang="pt-BR">
-
+<!DOCTYPE html>
+<html lang="pt-br">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mini Landing</title>
-    <link rel="stylesheet" href="src/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webserv Evaluation Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f0f2f5; color: #333; }
+        h1 { border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        h2 { margin-top: 0; color: #444; font-size: 1.2rem; }
+        section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-left: 5px solid #007bff; }
+        section.danger-zone { border-left-color: #dc3545; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        button { cursor: pointer; padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 0.9rem; transition: background 0.2s; }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        button.warning { background: #ffc107; color: #333; }
+        button.warning:hover { background: #e0a800; }
+        input[type="text"], input[type="file"] { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;}
+        .response-box { background: #2d2d2d; color: #0f0; padding: 10px; border-radius: 4px; font-family: monospace; min-height: 40px; margin-top: 10px; white-space: pre-wrap; word-break: break-all; }
+        code { background: #eee; padding: 2px 4px; border-radius: 3px; font-family: monospace; color: #d63384; }
+    </style>
 </head>
-
 <body>
-    <header class="site-header">
-        <div class="container">
-            <h1 class="logo">Meu Produto</h1>
-            <nav class="nav">
-                <a href="index.html">Início</a>
-                <a href="features.html">Recursos</a>
-                <a href="about.html">Sobre</a>
-            </nav>
+
+    <h1>Webserv Evaluation Dashboard</h1>
+    <p>Use esta página para validar os requisitos do checklist.</p>
+
+    <section>
+        <h2>1. Static Content & Navigation (GET)</h2>
+        <div class="grid">
+            <div>
+                <p>Testes de carregamento básico:</p>
+                <img src="src/img/german.jpg" alt="[TESTE: Imagem deve carregar aqui]" style="height: 150px; border: 1px dashed #ccc;">
+                <br><br>
+                <button onclick="window.location.reload()">Reload Page</button>
+            </div>
+            <div>
+                <p>Links Especiais:</p>
+                <ul>
+                    <li><a href="directory/">📂 Testar Auto Index (Listar Dir)</a></li>
+                    <li><a href="missing_page.html">❌ Testar Erro 404 (Página Custom)</a></li>
+                    <li><a href="redirect">↪️ Testar Redirecionamento (301)</a></li>
+                </ul>
+            </div>
         </div>
-    </header>
+    </section>
 
+    <section>
+        <h2>2. File Upload (POST)</h2>
+        <p>Faça upload de um arquivo para a pasta <code>/uploads</code>. Verifique se ele aparece lá depois.</p>
+        
+        <div>
+            <input type="file" name="fileToUpload" id="fileToUpload">
+            
+            <button onclick="uploadFile()">Enviar Arquivo (POST)</button>
+        </div>
 
-    <main>
-        <section class="hero">
-            <div class="container">
-                <h2>Uma solução simples pra começar</h2>
-                <p>Landing page minimalista, rápida e responsiva — perfeita para testar idéias e coletar e-mails.</p>
-                <form class="signup" id="contact" action="#">
-                    <input type="email" placeholder="seu@email.com" aria-label="email" required>
-                    <button type="submit">Quero saber mais</button>
+        <div id="uploadResult" class="response-box">Status: Aguardando...</div>
+    </section>
+
+    <section class="danger-zone">
+        <h2>3. File Deletion (DELETE)</h2>
+        <p>Digite o caminho relativo do arquivo para deletar (ex: <code>/uploads/teste.txt</code>).</p>
+        <div class="grid">
+            <div>
+                <input type="text" id="deletePath" placeholder="/uploads/nome_do_arquivo">
+                <button class="danger" onclick="deleteFile()">Enviar DELETE Request</button>
+            </div>
+            <div>
+                <button class="warning" onclick="deleteFile('/protected/file.txt')">Tentar Deletar Protegido (Erro 403)</button>
+            </div>
+        </div>
+        <div id="deleteResult" class="response-box">Status: Aguardando...</div>
+    </section>
+
+    <section>
+        <h2>4. CGI Testing (Python/PHP)</h2>
+        <div class="grid">
+            <div>
+                <h3>Teste Funcional</h3>
+                <form action="/cgi-bin/hello.py" method="GET">
+                    <input type="text" name="name" placeholder="Digite seu nome (GET)">
+                    <button type="submit">Testar CGI GET</button>
+                </form>
+                <br>
+                <form action="/cgi-bin/hello.py" method="POST">
+                    <input type="text" name="data" placeholder="Digite dados (POST)">
+                    <button type="submit">Testar CGI POST</button>
                 </form>
             </div>
-        </section>
+            <div>
+                <h3>Testes de Erro / Debug</h3>
+                
+                <a href="/cgi-bin/infinite.py" style="text-decoration: none;">
+                    <button class="danger" style="width: 100%; margin-bottom: 5px;">Infinite Loop (Timeout)</button>
+                </a>
+                
+                <a href="/cgi-bin/error.py" style="text-decoration: none;">
+                    <button class="danger" style="width: 100%; margin-bottom: 5px;">Syntax Error (500)</button>
+                </a>
 
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 10px 0;">
 
-        <section id="features" class="features container">
-            <article>
-                <h3>Rápido</h3>
-                <p>Carregamento leve e layout objetivo.</p>
-            </article>
-            <article>
-                <h3>Responsivo</h3>
-                <p>Funciona bem em celular, tablet e desktop.</p>
-            </article>
-            <article>
-                <h3>Personalizável</h3>
-                <p>Fácil de adaptar ao seu branding.</p>
-            </article>
-        </section>
-
-
-        <section id="about" class="about container">
-            <h3>Sobre</h3>
-            <p>Esta é uma mini landing page de exemplo. Edite o conteúdo e o estilo para adequar ao seu projeto.</p>
-        </section>
-    </main>
-
-
-    <footer class="site-footer">
-        <div class="container">
-            <small>© 2025 Meu Produto — Todos os direitos reservados</small>
+                <a href="/cgi-bin/env.py" target="_blank" style="text-decoration: none;">
+                    <button class="warning" style="width: 100%;">Ver Environment (Env Dump)</button>
+                </a>
+                <small style="color: #666;">*Abre em nova aba</small>
+            </div>
         </div>
-    </footer>
+    </section>
 
+    <section>
+        <h2>5. Body Size Limit (413)</h2>
+        <p>Configure o <code>client_max_body_size</code> para algo baixo (ex: 10 bytes) e tente enviar.</p>
+        <div>
+            <input type="text" id="bigTextPayload" value="Texto maior que o limite permitido." style="width: 80%;">
+            <button class="warning" onclick="testBodySize()">Testar Limite (POST)</button>
+        </div>
+        <div id="bodySizeResult" class="response-box">Status: Aguardando...</div>
+    </section>
 
+    <script>
+        async function deleteFile(manualPath = null) {
+            const path = manualPath || document.getElementById('deletePath').value;
+            const output = document.getElementById('deleteResult');
+            
+            if (!path) { output.innerText = "Erro: Digite um caminho."; return; }
+
+            output.innerText = `Enviando DELETE para ${path}...`;
+
+            try {
+                const response = await fetch(path, { method: 'DELETE' });
+                output.innerText = `Status: ${response.status} ${response.statusText}`;
+                
+                if (response.ok) output.style.color = "#0f0"; // Verde
+                else output.style.color = "#ff4444"; // Vermelho
+            } catch (err) {
+                output.innerText = "Erro de Rede: " + err.message;
+                output.style.color = "#ff4444";
+            }
+        }
+
+        function uploadFile() {
+            const fileInput = document.getElementById('fileToUpload');
+            const resultBox = document.getElementById('uploadResult');
+
+            // Verifica se tem arquivo selecionado
+            if (fileInput.files.length === 0) {
+                resultBox.innerHTML = '<span style="color: orange;">Por favor, selecione um arquivo.</span>';
+                return;
+            }
+
+            resultBox.innerHTML = 'Enviando...';
+
+            // Prepara o formulário de dados via JS
+            const formData = new FormData();
+            formData.append("fileToUpload", fileInput.files[0]);
+
+            // Envia a requisição
+            fetch('/uploads', {
+                method: 'POST',
+                body: formData
+                // Nota: Não definimos 'Content-Type' manualmente aqui, 
+                // o fetch faz isso automaticamente para multipart/form-data
+            })
+            .then(response => {
+                // Tenta ler o corpo da resposta (caso seu servidor mande HTML ou texto)
+                return response.text().then(text => {
+                    return { status: response.status, body: text, ok: response.ok };
+                });
+            })
+            .then(data => {
+                if (data.ok) {
+                    resultBox.innerHTML = `<span style="color: #0f0;">Sucesso (${data.status}): Arquivo enviado!</span>`;
+                    // Opcional: limpar o input após sucesso
+                    fileInput.value = ''; 
+                } else {
+                    resultBox.innerHTML = `<span style="color: #ff4444;">Erro (${data.status}): ${data.body}</span>`;
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                resultBox.innerHTML = `<span style="color: #ff4444;">Erro de conexão.</span>`;
+            });
+        }
+
+        async function testBodySize() {
+            const text = document.getElementById('bigTextPayload').value;
+            const output = document.getElementById('bodySizeResult');
+            output.innerText = "Enviando payload...";
+
+            try {
+                // Envia para uma rota que aceita POST (pode ser a mesma do upload ou uma dummy)
+                const response = await fetch('/post_body', { 
+                    method: 'POST',
+                    body: text // Envia texto puro ou poderia ser FormData
+                });
+                
+                output.innerText = `Status: ${response.status} ${response.statusText}`;
+                
+                // Se der 413, é SUCESSO para este teste
+                if (response.status === 413) {
+                    output.innerHTML += ' <span style="color: #0f0;">(Correto: Bloqueado)</span>';
+                    output.style.color = "#0f0";
+                } else if (response.ok) {
+                    output.innerHTML += ' <span style="color: #ff4444;">(Falha: O servidor aceitou)</span>';
+                    output.style.color = "#ff4444";
+                } else {
+                    output.style.color = "orange";
+                }
+            } catch (err) {
+                output.innerText = "Erro (Possível conexão fechada pelo servidor): " + err.message;
+            }
+        }
+    </script>
 </body>
-
 </html>

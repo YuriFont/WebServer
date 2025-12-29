@@ -101,7 +101,7 @@ void CgiHandler::spawnCgiChild(const HttpRequest &request, const Location &locat
 
     //Monta o ambiente CGI
     std::vector<std::string> env = buildCgiEnv(request, location, path);
-    char **envp = Utils::vecToCharArray(env); 
+    char **envp = Utils::vecToCharArray(env);
 
     //Argumentos
     char *argv[] = {
