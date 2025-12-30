@@ -46,25 +46,61 @@ HttpRequest::HttpRequest(const char *buffer): _buffer(buffer) {
 }
 
 void HttpRequest::parser() {
-    
+    _hasError = false;
+    _errorCode = 0;
+
     // encontrar o fim dos headers
     size_t headerEnd = this->_buffer.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        _hasError = true;
+        _errorCode = 400;
+        return;
+    }
+
     std::string headersPart = this->_buffer.substr(0, headerEnd);
 
     std::vector<std::string> lines;
     std::stringstream ss(headersPart);
     std::string aux;
 
-    while (getline(ss, aux, '\n')) {
+    while (std::getline(ss, aux, '\n')) {
+        // Remove '\r' no final (caso venha CRLF)
+        if (!aux.empty() && aux[aux.size() - 1] == '\r')
+            aux.erase(aux.size() - 1);
         lines.push_back(Utils::trim(aux));
     }
 
     // primeira linha → método, caminho e versão
-    int indexFirstLine = 0;
-    if (lines[indexFirstLine].empty())
+    size_t indexFirstLine = 0;
+    while (indexFirstLine < lines.size() && lines[indexFirstLine].empty())
         indexFirstLine++;
+
+    if (indexFirstLine >= lines.size()) {
+        _hasError = true;
+        _errorCode = 400;
+        return;
+    }
+
     std::stringstream firstLine(lines[indexFirstLine]);
-    firstLine >> _method >> _path >> _httpVersion;
+    if (!(firstLine >> _method >> _path >> _httpVersion)) {
+        _hasError = true;
+        _errorCode = 400;
+        return;
+    }
+
+    // Se tiver token sobrando na request line, considera inválido (opcional, mas ajuda a pegar lixo)
+    std::string extra;
+    if (firstLine >> extra) {
+        _hasError = true;
+        _errorCode = 400;
+        return;
+    }
+
+    if (_httpVersion != "HTTP/1.0" && _httpVersion != "HTTP/1.1") {
+        _hasError = true;
+        _errorCode = 400;
+        return;
+    }
 
     // separar path e query string
     size_t qpos = _path.find('?');
@@ -76,15 +112,62 @@ void HttpRequest::parser() {
     }
 
     // headers
-    for (size_t i = indexFirstLine; i < lines.size(); i++) {
+    // IMPORTANTE: começa do indexFirstLine + 1 (não incluir request-line)
+    for (size_t i = indexFirstLine + 1; i < lines.size(); i++) {
+        if (lines[i].empty())
+            continue;
+
         size_t pos = lines[i].find(':');
-        if (pos == std::string::npos) continue;
+
+        // Se não vier "Chave: Valor" => 400
+        if (pos == std::string::npos) {
+            _hasError = true;
+            _errorCode = 400;
+            return;
+        }
 
         std::string key = Utils::trim(lines[i].substr(0, pos));
         std::string value = Utils::trim(lines[i].substr(pos + 1));
+
+        // Regra do avaliador: "Chave:" (valor vazio) => 400
+        if (key.empty() || value.empty()) {
+            _hasError = true;
+            _errorCode = 400;
+            return;
+        }
+
         _headers[key] = value;
     }
 
+    // Host obrigatório se HTTP/1.1
+    if (_httpVersion == "HTTP/1.1") {
+        std::string host = Utils::trim(getHeader("Host"));
+        if (host.empty())
+            host = Utils::trim(getHeader("host")); // fallback mínimo
+
+        if (host.empty()) {
+            _hasError = true;
+            _errorCode = 400;
+            return;
+        }
+    }
+
+    // Conferir Content-Length: se existe, tem que ser numérico
+    std::string cl = getHeader("Content-Length");
+    if (cl.empty())
+        cl = getHeader("content-length");
+
+    if (!cl.empty()) {
+        for (size_t k = 0; k < cl.size(); ++k) {
+            if (!std::isdigit(static_cast<unsigned char>(cl[k]))) {
+                _hasError = true;
+                _errorCode = 400;
+                return;
+            }
+        }
+    }
+
+    // Extrair content-length 
     std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
     size_t value;
     if (it == _headers.end())
@@ -96,12 +179,12 @@ void HttpRequest::parser() {
     }
     this->_contentLength = value;
 
-
     if (this->getContentLength() > 0) {
         _body.reserve(this->getContentLength());
-        _body = (headerEnd != std::string::npos) ? this->_buffer.substr(headerEnd + 4) : "";
+        _body = this->_buffer.substr(headerEnd + 4);
     }
-};
+}
+
 
 HttpRequest::~HttpRequest() {};
 
@@ -181,6 +264,8 @@ void HttpRequest::clearAllData() {
     this->_body.erase();
     this->_queryString.erase();
     this->_contentLength = 0;
+    this->_hasError = false;
+    this->_errorCode = 0;
 };
 
 bool HttpRequest::isChunked() const {
@@ -208,3 +293,11 @@ std::string HttpRequest::extractBodyAfterHeaders() {
 const std::map<std::string, std::string>& HttpRequest::getHeaders() const {
     return this->_headers;
 };
+
+bool HttpRequest::hasError() const{
+    return this->_hasError;
+}
+
+int HttpRequest::getErrorCode() const{
+    return this->_errorCode;
+}
