@@ -107,25 +107,19 @@ void Server::removeClient(int client_fd) {
 }
 
 void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize, int& bytes) {
-
-    // O epoll garantiu (EPOLLIN) que há dados ou um evento de fechamento. Então se retornar -1 e provavelmente um erro.
     bytes = recv(client_fd, buffer, bufSize, 0);
 
-    // Sucesso, vamos tratar o buffer continuando com o fluxo atual
-    if (bytes > 0) {
-        return ;
-    } else if (bytes == 0) {
-        removeClient(client_fd);
-        logClientDesconected(client_fd);
-    }
+    if (bytes > 0)
+        return;
 
-    // Se bytes e == 0 o cliente notificou que vai se desconectar
-    // Se valor < 0 provavelmente e um erro pois o epoll nos garantiu que havia dados para ler
     if (bytes == 0) {
         logClientDesconected(client_fd);
-    } else {
-        std::cerr << "[FD " << client_fd << "] Error reading socket, closing connection" << std::endl;
+        removeClient(client_fd);
+        return;
     }
+
+    std::cerr << "[FD " << client_fd << "] Error reading socket, closing connection\n";
+    logClientDesconected(client_fd);
     removeClient(client_fd);
 }
 
