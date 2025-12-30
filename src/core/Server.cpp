@@ -7,11 +7,14 @@
 #include "../../include/utils/Utils.hpp"
 #include "../../include/utils/ErrorPage.hpp"
 
-Server::Server(const Config &config) : _config(config), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
+Server::Server(const Config &config) : _config(config), epoll_fd(-1), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
 
 Server::~Server() {
+
     for (size_t i = 0; i < server_fds.size(); i++) {
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, server_fds[i], NULL);
+        if (this->epoll_fd != -1){
+            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, server_fds[i], NULL);
+        }
         close(server_fds[i]);
     }
 
@@ -33,19 +36,27 @@ Server::~Server() {
         }
         delete cgi;
     }
-    close(epoll_fd);
+    if (epoll_fd != -1)
+        close(epoll_fd);
 }
 
 void Server::initAllSockets() {
     for (size_t i = 0; i < _config.servers.size(); i++) {
         ServerConfig sc = _config.servers[i];
         int fd = sc.initSocket();
+        if (fd == -1) {
+            this->shutdown();
+            return;
+        }
         server_fds.push_back(fd);
         server_by_fd[fd] = sc;
     }
 }
 
 void Server::registerSocketsInEpoll() {
+
+    if (!this->_running)
+        return;
     epoll_fd = epoll_create(1);
     if (epoll_fd == -1) {
         perror("epoll_create");

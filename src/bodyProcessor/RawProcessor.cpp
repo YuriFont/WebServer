@@ -148,6 +148,17 @@ void RawProcessor::initTypes() {
     _types["csv"] = ".csv";
 };
 
+void RawProcessor::cleanup() {
+    if (_outFile.is_open()) {
+        _outFile.close();
+    }
+
+    if (!_fileName.empty()) {
+        remove(_fileName.c_str());
+        _fileName.clear();
+    }
+}
+
 std::string RawProcessor::getExtension(const std::string& contentType) {
 
     if (_types.count(contentType)) {
@@ -171,12 +182,14 @@ void RawProcessor::handleRawPost(const std::string& chunk) {
         _response = new HttpResponse();
     if (_types.count(_contentType)) {
         if (!append(chunk, chunk.size())) {
+            cleanup();
             _response->setStatus(500);
             _response->setContentType("text/html");
             _response->setBody("Fail upload file");
             _isFinished = true;
         }
     } else {
+        cleanup();
         _response->setStatus(415);
         _response->setContentType("text/html");
         _response->setBody("415 Unsupported Media Type: The server only supports form uploads.");

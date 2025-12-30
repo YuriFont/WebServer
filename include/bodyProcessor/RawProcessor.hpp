@@ -37,6 +37,7 @@ class RawProcessor : public ABodyProcessor {
         bool append(std::string data, size_t len);
         void createFile();
         void finishFileUpload();
+        void cleanup();
 
 };
 
