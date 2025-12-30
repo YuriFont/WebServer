@@ -551,7 +551,6 @@ void Server::handleCgiEvent(int fd, uint32_t ev) {
         handleCgiRead(fd);
     }
     updateClientActivity(fd);
-    updateCgiActivity(fd);
 }
 
 void Server::eventLoop() {

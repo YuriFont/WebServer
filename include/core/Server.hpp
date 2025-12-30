@@ -28,7 +28,6 @@ class Server {
         std::map<int, CgiProcess*> _cgiByFd;
         bool _running;
         const int _CLIENT_TIMEOUT;
-        std::map<int, time_t> _cgi_start_time;
         
         void initAllSockets();
         void registerSocketsInEpoll();
