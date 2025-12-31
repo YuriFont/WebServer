@@ -185,9 +185,10 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
 void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
-    resp.setConnectionClose(client.getCloseConnection());
+    resp.setConnectionClose(true);
+    // resp.setConnectionClose(client.getCloseConnection());
     client.setResponse(resp.toString());
-    // client.setCloseConnection(resp.isConnectionClose());
+    client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
 
     epoll_event& event = client.getDataEvent();
@@ -274,17 +275,19 @@ void Server::handleClientRequest(int client_fd) {
     }
     Client& client = clients[client_fd];
     addBuffer(client, buffer, bytes);
-    if (!client.isAllHeaders())
+    if (!client.isAllHeaders()) {
+        updateClientActivity(client_fd);
         return ;
+    }
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
     if (client.isChunked()){
-        // std::cout << client.getRequest().getBody() << std::endl;
-        if(!client.isChunkedFinished())
+        if(!client.isChunkedFinished()) {
+            updateClientActivity(client_fd);
             return;
+        }
 
         if (!client.isBodyDelivered()) {
-            // std::cout << "Vou setar o body do chuncked, tamanho atual: " << client.getChunkedBody().size() << std::endl;
             client.getRequest().setBody(client.getChunkedBody());
             client.handler->handleData(client.getRequest().getBody());
             client.eraseBody();

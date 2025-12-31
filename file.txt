@@ -1,0 +1,998 @@
+
+--- ./tests/cgi/test_post_cgi_chunked.py ---
+from utils.http_client import send_raw_http
+
+# Faz uma requisição para o CGI, um test.py que mostra o metodo feito e a query string se tiver
+def test_post_cgi_chunked(server_addr):
+    host, port = server_addr
+    data = b"chunked=cgi"
+
+    chunk = hex(len(data))[2:].encode() + b"\r\n" + data + b"\r\n0\r\n\r\n"
+
+    req = (
+        b"POST /cgi-bin/test.py HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n\r\n"
+        + chunk
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+    assert b"200" in res
+    assert b"chunked=cgi" in res
+
+--- ./tests/cgi/test_post_cgi_raw.py ---
+from utils.http_client import send_raw_http
+
+#Test POST para o CGI, o servidor deve processar o CGI e devolver o corpo mesmo que foi enviado
+def test_post_cgi_raw(server_addr):
+    host, port = server_addr
+    body = b"hello=42"
+
+    req = (
+        b"POST /cgi-bin/test.py HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+    assert b"200" in res
+    assert b"hello=42" in res
+
+--- ./tests/get/test_get_cgi.py ---
+from utils.http_client import send_raw_http
+
+#Teste GET em CGI, o servidor deve devolver 200 OK
+def test_get_cgi(server_addr):
+    host, port = server_addr
+    req = (
+        b"GET /cgi-bin/test_cgi.py?name=42 HTTP/1.1\r\n"
+        b"Connection: close\r\n"
+        b"Host: localhost\r\n"
+        b"\r\n"
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+
+    assert b"200 OK" in res
+    assert b"Content-Type" in res
+
+--- ./tests/get/test_get_static.py ---
+from utils.http_client import send_raw_http
+
+#Teste GET simples na pagina inicial
+def test_get_static_file(server_addr):
+    host, port = server_addr
+    req = (
+        b"GET /index.html HTTP/1.1\r\n"
+        b"Connection: close\r\n"
+        b"Host: localhost\r\n"
+        b"\r\n"
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+
+    assert b"200 OK" in res
+    assert b"<html" in res
+
+--- ./tests/conftest.py ---
+# tests./conftest.py
+import subprocess
+import time
+import pytest
+
+# Iniciar o servidor automaticamente
+# @pytest.fixture(scope="session", autouse=True)
+# def webserv_server():
+#     proc = subprocess.Popen(
+#         ["./webserv", "configs/test.conf"],
+#         stdout=subprocess.DEVNULL,
+#         stderr=subprocess.DEVNULL
+#     )
+
+#     time.sleep(1)  # tempo para subir
+
+#     yield
+
+#     proc.terminate()
+#     proc.wait()
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--webserv-host",
+        action="store",
+        default="127.0.0.1",
+        help="Webserv host"
+    )
+    parser.addoption(
+        "--webserv-port",
+        action="store",
+        default="8080",
+        help="Webserv port"
+    )
+
+
+@pytest.fixture
+def server_addr(pytestconfig):
+    host = pytestconfig.getoption("--webserv-host")
+    port = int(pytestconfig.getoption("--webserv-port"))
+    return host, port
+
+--- ./tests/utils/ensure_file_exist.py ---
+from pathlib import Path
+import os
+
+def ensure_test_file(
+    path: Path,
+    size_mb: int,
+    randomize: bool = False,
+    pattern: bytes = b"A"
+):
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if path.exists() and path.stat().st_size == size_mb * 1024 * 1024:
+        return
+
+    total_size = size_mb * 1024 * 1024
+
+    with open(path, "wb") as f:
+        remaining = total_size
+        while remaining > 0:
+            if randomize:
+                chunk = os.urandom(min(4096, remaining))
+            else:
+                chunk = pattern * min(4096, remaining)
+
+            f.write(chunk)
+            remaining -= len(chunk)
+
+--- ./tests/utils/http.py ---
+# tests./utils/http.py
+import requests
+
+def get(path, host="localhost", port=8080):
+    return requests.get(f"http://{host}:{port}{path}")
+
+def post(path, data=None, host="localhost", port=8080):
+    return requests.post(f"http://{host}:{port}{path}", data=data)
+
+def delete(path, host="localhost",port=8080):
+    return requests.delete(f"http://{host}:{port}{path}")
+
+--- ./tests/utils/.server.py ---
+import pytest
+
+@pytest.fixture(scope="session")
+def server_addr(pytestconfig):
+    host = pytestconfig.getini("webserv_host")
+    port = int(pytestconfig.getini("webserv_port"))
+    return host, port
+
+--- ./tests/utils/http_client.py ---
+import socket
+
+def send_raw_http(request: bytes, host="127.0.0.1", port=8080) -> bytes:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+
+    response = b""
+    try:
+        s.sendall(request)
+        while True:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            response += chunk
+    except ConnectionResetError:
+        # servidor fechou cedo (esperado em 413)
+        pass
+    finally:
+        s.close()
+
+    return response
+
+--- ./tests/utils/builder.py ---
+
+
+def build_multipart(boundary, parts):
+    body = []
+
+    for part in parts:
+        if not part.get("enabled", True):
+            continue
+
+        body.append(b"--" + boundary + b"\r\n")
+
+        disp = b'Content-Disposition: form-data; name="' + part["name"] + b'"'
+        if part.get("filename"):
+            disp += b'; filename="' + part["filename"] + b'"'
+        body.append(disp + b"\r\n")
+
+        body.append(b"Content-Type: " + part["type"] + b"\r\n\r\n")
+        body.append(part["content"])
+        body.append(b"\r\n")
+
+    body.append(b"--" + boundary + b"--\r\n")
+    return b"".join(body)
+
+--- ./tests/post/test_09_post_raw_file.py ---
+from utils.http_client import send_raw_http
+
+# Um POST simple de arquivo binario, dentro da pasta /uploads deve ter um .bin com "HELLO BINARIO", se não suportado não cria nada, pois application/octet-stream não esta mapeado para salvar
+def test_post_raw_file(server_addr):
+    host, port = server_addr
+    body = b"\x00\x01\x02\x03HELLO BINARIO"
+
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Content-Type: application/octet-stream\r\n"
+        b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+    assert b"415" in res
+
+--- ./tests/post/test_10_post_multipart_multi_files.py ---
+from utils.http_client import send_raw_http
+from utils.builder import build_multipart
+from pathlib import Path
+
+# Teste de envio post Multpart com diversos arquivos, na pasta /uploads deve possuir os seguintes arquivos
+# test_raw_multipart.txt
+# image_raw_multipart.png
+# test_raw_multipart.json
+# webserv_raw_multipart.pdf
+# video_raw_multipart.mp4
+BASE_DIR = Path(__file__).resolve().parent.parent  # tests/
+FILES_DIR = BASE_DIR / "files"
+def test_post_multipart_multiple_real_files(server_addr):
+    host, port = server_addr
+    boundary = b"BOUNDARY42"
+
+    txt = (FILES_DIR / "test.txt").read_bytes()
+    img = (FILES_DIR / "image.png").read_bytes()
+    json = (FILES_DIR / "test.json").read_bytes()
+    pdf = (FILES_DIR / "webserv-1.pdf").read_bytes()
+    video = (FILES_DIR / "video.mp4").read_bytes()
+    
+    parts = [
+        {
+            "name": b"file1",
+            "filename": b"test_raw_multipart.txt",
+            "content": txt,
+            "type": b"text/plain",
+        },
+        {
+            "name": b"file2",
+            "filename": b"image_raw_multipart.png",
+            "content": img,
+            "type": b"image/png",
+        },
+        {
+            "name": b"file3",
+            "filename": b"test_raw_multipart.json",
+            "content": json,
+            "type": b"application/json",
+        },
+        {
+            "name": b"file4",
+            "filename": b"webserv_raw_multipart.pdf",
+            "content": pdf,
+            "type": b"application/pdf",
+        }
+    ]
+    
+    if (FILES_DIR / "video.mp4").exists():
+        parts.append({
+            "name": b"file",
+            "filename": b"video_raw_multipart.mp4",
+            "content": video,
+            "type": b"video/mp4",
+    })
+        
+    body = build_multipart(boundary=boundary, parts=parts)
+
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Content-Type: multipart/form-data; boundary=" + boundary + b"\r\n"
+        b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+
+    assert b"200 OK" in res or b"201" in res
+
+--- ./tests/post/test_03_post_multipart_chunked.py ---
+from utils.http_client import send_raw_http
+
+#teste de POST em chuncked, na pasta uploads deve ter uma arquivo chamado helloChunked.txt com "hello chunked" dentro
+def test_post_multipart_chunked(server_addr):
+    host, port = server_addr
+    boundary = "BOUND42"
+
+    data = (
+        f"--{boundary}\r\n"
+        "Content-Disposition: form-data; name=\"file\"; filename=\"helloChunked.txt\"\r\n"
+        "Content-Type: text/plain\r\n\r\n"
+        "hello chunked\r\n"
+        f"--{boundary}--\r\n"
+    ).encode()
+
+    chunks = [
+        hex(len(data))[2:].encode() + b"\r\n" + data + b"\r\n",
+        b"0\r\n\r\n"
+    ]
+
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"Content-Type: multipart/form-data; boundary=" + boundary.encode() + b"\r\n\r\n"
+        + b"".join(chunks)
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+    assert b"201" in res
+
+--- ./tests/post/test_post_chunked_invalid.py ---
+from utils.http_client import send_raw_http
+
+def test_chunk_size_not_hex(server_addr):
+    host, port = server_addr
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Transfer-Encoding: chunked\r\n\r\n"
+        b"Z\r\n"
+        b"abc\r\n"
+        b"0\r\n\r\n"
+    )
+    res = send_raw_http(req, host=host, port=port)
+    assert b"400" in res
+
+--- ./tests/post/test_15_post_chunked_txt_10MB.py ---
+from pathlib import Path
+from utils.http_client import send_raw_http
+from utils.ensure_file_exist import ensure_test_file
+
+# arquivo de 10MB enviado para o servidor em chunked(pedaços, não sabemos o content-length), um arquivo .txt de 10MB será criado na pasta /uploads
+BASE_DIR = Path(__file__).resolve().parent.parent  # tests/
+FILES_DIR = BASE_DIR / "files"
+def test_post_raw_existing_txt_10mb_chunked(server_addr):
+    host, port = server_addr
+    # Criar arquivo
+    # dd if=/dev/zero of=text_10mb.txt bs=1024 count=10240
+    file_path = (FILES_DIR / "text_10mb.txt")
+    ensure_test_file(file_path, size_mb=10, pattern=b"X")
+
+    chunk_size = 8192  # 8KB por chunk (bom equilíbrio)
+    nb = 0
+    chunks = []
+
+    with file_path.open("rb") as f:
+        while True:
+            part = f.read(chunk_size)
+            if not part:
+                break
+
+            nb += 1
+            chunks.append(
+                hex(len(part))[2:].encode() + b"\r\n" +
+                part + b"\r\n"
+            )
+
+    print(f"Total de chunks enviados: {nb}")
+
+    # chunk final
+    chunks.append(b"0\r\n\r\n")
+
+    body = b"".join(chunks)
+
+    req = (
+        b"POST /upload/ HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"Content-Type: text/plain\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+
+    assert b"200 OK" in res or b"201" in res
+
+--- ./tests/post/test_16_post_chunked_txt_10MB_fragmented.py ---
+import socket
+import time
+from pathlib import Path
+from utils.ensure_file_exist import ensure_test_file
+
+# arquivo de 10MB enviado para o servidor em chunked(pedaços, não sabemos o content-length), um arquivo .txt de 10MB será criado na pasta /uploads, o envio desse e feito com intervalo de tempo entre os pedaços enviados
+BASE_DIR = Path(__file__).resolve().parent.parent  # tests/
+FILES_DIR = BASE_DIR / "files"
+def test_post_raw_existing_txt_10mb_chunked_split_crlf(server_addr):
+    host, port = server_addr
+    # 1. Preparação do arquivo
+    file_path = (FILES_DIR / "text_10mb.txt")
+    ensure_test_file(file_path, size_mb=10, pattern=b"X")
+
+    chunk_size = 8192 
+    
+    # 2. Conectar manualmente (para termos controle do send)
+    # Assumindo localhost e porta 8080 (ajuste conforme seu servidor)
+    # host = "localhost"
+    # port = 8080 
+    
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+
+    # 3. Enviar Cabeçalhos
+    header = (
+        b"POST /upload/ HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"Content-Type: text/plain\r\n\r\n"
+    )
+    s.sendall(header)
+
+    # 4. Enviar Corpo com "Maldade" (Splitting CRLF)
+    with file_path.open("rb") as f:
+        while True:
+            part = f.read(chunk_size)
+            if not part:
+                break
+
+            size_hex = hex(len(part))[2:].encode()
+            
+            # AQUI ESTÁ A MÁGICA:
+            # Em vez de enviar tudo junto, enviamos fragmentado
+            
+            # 1. Envia o tamanho e o \r
+            s.send(size_hex + b"\r")
+            time.sleep(0.002) # Pequena pausa força o flush do pacote TCP
+            
+            # 2. Envia o \n que completa o tamanho
+            s.send(b"\n")
+            time.sleep(0.002)
+
+            # 3. Envia o conteúdo
+            s.send(part)
+            
+            # 4. Envia o \r final do bloco
+            s.send(b"\r")
+            time.sleep(0.002)
+
+            # 5. Envia o \n final do bloco
+            s.send(b"\n")
+
+    # 5. Chunk final (0\r\n\r\n) também fragmentado
+    s.send(b"0\r")
+    time.sleep(0.002)
+    s.send(b"\n\r\n")     # Testando uma combinação diferente aqui
+    time.sleep(0.002)
+    # s.send(b"\n")
+
+    # 6. Ler resposta
+    response = b""
+    while True:
+        data = s.recv(4096)
+        if not data:
+            break
+        response += data
+    
+    s.close()
+
+    # Validação
+    print(f"Resposta recebida:\n{response.decode(errors='ignore')}")
+    assert b"200 OK" in response or b"201" in response
+
+--- ./tests/post/test_13_post_raw_existing_file_chunked.py ---
+from pathlib import Path
+from utils.http_client import send_raw_http
+
+# Teste de envio simples de uma imagem .png porem em chuncked(pedaços sem content length), deve estar dentro da pasta /uploads com prefixo upload_ + numero aleatorio
+
+BASE_DIR = Path(__file__).resolve().parent.parent  # tests/
+FILES_DIR = BASE_DIR / "files"
+def test_post_raw_existing_file_chunked_split(server_addr):
+    host, port = server_addr
+    data = (FILES_DIR / "image.png").read_bytes()
+    chunk_size = 2048  # 1KB por chunk
+    nb = 0
+
+    chunks = []
+    for i in range(0, len(data), chunk_size):
+        nb = nb + 1
+        part = data[i:i+chunk_size]
+        chunks.append(hex(len(part))[2:].encode() + b"\r\n" + part + b"\r\n")
+
+    # chunk final
+    print(f"Total de chuncks {nb}")
+    chunks.append(b"0\r\n\r\n")
+
+    body = b"".join(chunks)
+
+    req = (
+        b"POST /upload/ HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"Content-Type: image/png\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+
+    assert b"200 OK" in res or b"201" in res
+
+--- ./tests/post/test_03_post_raw_chunked.py ---
+from utils.http_client import send_raw_http
+
+# teste POST puro, com o servidor salvando o arquivo com base no content-type, dentro do arquivo deve ter "HELLO"
+def test_post_raw_chunked(server_addr):
+    host, port = server_addr
+    data = b"\x00\xff\x01\xfeHELLO"
+
+    chunk = hex(len(data))[2:].encode() + b"\r\n" + data + b"\r\n0\r\n\r\n"
+
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"\r\n" + chunk
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+    assert b"201" in res
+
+--- ./tests/post/test_08_post_multipart.py ---
+from utils.http_client import send_raw_http
+
+# teste POST multipart o servidor deve criar um arquivo hello42.txt com o seguinte texto dentro "hello 42"
+def test_post_multipart(server_addr):
+    host, port = server_addr
+    boundary = b"----WebKitFormBoundary42"
+
+    body = (
+        b"--" + boundary + b"\r\n"
+        b"Content-Disposition: form-data; name=\"file\"; filename=\"hello42.txt\"\r\n"
+        b"Content-Type: text/plain\r\n\r\n"
+        b"hello 42\r\n"
+        b"--" + boundary + b"--\r\n"
+    )
+
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Content-Type: multipart/form-data; boundary=" + boundary + b"\r\n"
+        b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+    assert b"201" in res or b"200 OK" in res
+
+--- ./tests/post/test_11_post_multipart_multi_files_chunked.py ---
+from utils.http_client import send_raw_http
+from pathlib import Path
+
+# Teste de envio post Multpart com diversos arquivos em chunked, na pasta /uploads deve possuir os seguintes arquivos
+# test_chunked_multipart.txt
+# image_chunked_multipart.png
+# test_chunked_multipart.json
+# webserv_chunked_multipart.pdf
+# video_chunked_multipart.mp4
+BASE_DIR = Path(__file__).resolve().parent.parent  # tests/
+FILES_DIR = BASE_DIR / "files"
+def test_post_multipart_multiple_real_files_chunked(server_addr):
+    host, port = server_addr
+    boundary = "BOUNDARY42"
+
+    txt = (FILES_DIR / "test.txt").read_bytes()
+    img = (FILES_DIR / "image.png").read_bytes()
+    json_file = (FILES_DIR / "test.json").read_bytes()
+    pdf = (FILES_DIR / "webserv-1.pdf").read_bytes()
+    video = (FILES_DIR / "video.mp4").read_bytes()
+
+    # Função auxiliar para criar um chunk
+    def to_chunk(data: bytes) -> bytes:
+        return hex(len(data))[2:].encode() + b"\r\n" + data + b"\r\n"
+
+    chunks = []
+
+    # file1 - txt
+    chunks.append(to_chunk(
+        f"--{boundary}\r\n"
+        "Content-Disposition: form-data; name=\"file1\"; filename=\"test_chunked_multipart.txt\"\r\n"
+        "Content-Type: text/plain\r\n\r\n".encode()
+    ))
+    chunks.append(to_chunk(txt))
+
+    # file2 - image
+    chunks.append(to_chunk(
+        f"--{boundary}\r\n"
+        "Content-Disposition: form-data; name=\"file2\"; filename=\"image_chunked_multipart.png\"\r\n"
+        "Content-Type: image/png\r\n\r\n".encode()
+    ))
+    chunks.append(to_chunk(img))
+
+    # file3 - json
+    chunks.append(to_chunk(
+        f"--{boundary}\r\n"
+        "Content-Disposition: form-data; name=\"file3\"; filename=\"test_chunked_multipart.json\"\r\n"
+        "Content-Type: application/json\r\n\r\n".encode()
+    ))
+    chunks.append(to_chunk(json_file))
+
+    # file4 - pdf
+    chunks.append(to_chunk(
+        f"--{boundary}\r\n"
+        "Content-Disposition: form-data; name=\"file4\"; filename=\"webserv_chunked_multipart.pdf\"\r\n"
+        "Content-Type: application/pdf\r\n\r\n".encode()
+    ))
+    chunks.append(to_chunk(pdf))
+
+    # file5 - video
+    chunks.append(to_chunk(
+        f"--{boundary}\r\n"
+        "Content-Disposition: form-data; name=\"file5\"; filename=\"video_chunked_multipart.mp4\"\r\n"
+        "Content-Type: video/mp4\r\n\r\n".encode()
+    ))
+    chunks.append(to_chunk(video))
+
+    # fechamento do multipart
+    chunks.append(to_chunk(f"--{boundary}--\r\n".encode()))
+
+    # chunk final 0
+    chunks.append(b"0\r\n\r\n")
+
+    # monta o corpo completo
+    body = b"".join(chunks)
+
+    # monta a requisição HTTP
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"Content-Type: multipart/form-data; boundary=" + boundary.encode() + b"\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+
+    assert b"200 OK" in res or b"201" in res
+
+--- ./tests/post/test_14_post_chunked_txt_100MB.py ---
+from pathlib import Path
+from utils.http_client import send_raw_http
+from utils.ensure_file_exist import ensure_test_file
+
+# arquivo de 100MB enviado para o servidor em chunked(pedaços, não sabemos o content-length), um arquivo .txt de 100MB será criado na pasta /uploads
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent  # tests/
+FILES_DIR = BASE_DIR / "files"
+def test_post_raw_existing_txt_100mb_chunked(server_addr):
+    host, port = server_addr
+    file_path = (FILES_DIR / "text_100mb.txt")
+    ensure_test_file(file_path, size_mb=100, pattern=b"Z")
+
+    # assert file_path.exists(), "Arquivo text_100mb.txt não existe"
+
+    chunk_size = 8192  # 8KB por chunk (bom equilíbrio)
+    nb = 0
+    chunks = []
+
+    with file_path.open("rb") as f:
+        while True:
+            part = f.read(chunk_size)
+            if not part:
+                break
+
+            nb += 1
+            chunks.append(
+                hex(len(part))[2:].encode() + b"\r\n" +
+                part + b"\r\n"
+            )
+
+    print(f"Total de chunks enviados: {nb}")
+
+    # chunk final
+    chunks.append(b"0\r\n\r\n")
+
+    body = b"".join(chunks)
+
+    req = (
+        b"POST /upload/ HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"Content-Type: text/plain\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+
+    assert b"200 OK" in res or b"201" in res
+
+--- ./tests/post/test_07_post_form.py ---
+from utils.http_client import send_raw_http
+
+#Teste post de fomulario, no servidor na pasta /uploads deve ter um arquivo .txt com "user=erick&lang=cpp" dentro
+def test_post_form(server_addr):
+    host, port = server_addr
+    body = b"user=erick&lang=cpp"
+
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Content-Type: application/x-www-form-urlencoded\r\n"
+        b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
+        + body
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+    assert b"201" in res
+
+--- ./tests/post/test_02_post_form_chunked.py ---
+from utils.http_client import send_raw_http
+
+#envio POST em chuncked, sem content length, na pasta uploads deve ter um .txt com "user=42&project=webserv&post=form"
+def test_post_form_chunked(server_addr):
+    host, port = server_addr
+    data = b"user=42&project=webserv&post=form"
+
+    chunk = hex(len(data))[2:].encode() + b"\r\n" + data + b"\r\n0\r\n\r\n"
+
+    req = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"Content-Type: application/x-www-form-urlencoded\r\n\r\n"
+        + chunk
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+    assert b"201" in res
+
+--- ./tests/post/test_12_post_raw_existing_file.py ---
+from utils.http_client import send_raw_http
+from pathlib import Path
+
+# Teste de envio simples de uma imagem .png deve estar dentro da pasta /uploads com prefixo upload_ + numero aleatorio
+BASE_DIR = Path(__file__).resolve().parent.parent  # tests/
+FILES_DIR = BASE_DIR / "files"
+def test_post_raw_existing_file(server_addr):
+    host, port = server_addr
+    data = (FILES_DIR / "image.png").read_bytes()
+
+    req = (
+        b"POST /upload/image.png HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Connection: close\r\n"
+        b"Content-Type: image/png\r\n"
+        b"Content-Length: " + str(len(data)).encode() + b"\r\n\r\n"
+        + data
+    )
+
+    res = send_raw_http(req, host=host, port=port)
+
+    assert b"200 OK" in res or b"201" in res
+
+--- ./tests/codes/test_invalid_headers.py ---
+from utils.http_client import send_raw_http
+
+def test_header_without_colon(server_addr):
+    host, port = server_addr
+    req = (
+        b"GET / HTTP/1.1\r\n"
+        b"Host localhost\r\n"
+        b"\r\n"
+    )
+    res = send_raw_http(req, host=host, port=port)
+    assert b"400" in res
+
+--- ./tests/codes/test_status_codes.py ---
+# tests./test_status_codes.py
+from utils.http import get, post
+from utils.http_client import send_raw_http
+
+import socket
+import time
+
+# executar um teste em especifico
+# pytest tests/codes/test_status_codes.py::<nome da função>
+# -vv -> bem detalhado
+# -s -> permite printar no terminal
+def test_200_ok(server_addr):
+    host, port = server_addr
+    r = get("/", host=host,port=port)
+    assert r.status_code == 200
+
+def test_404_not_found(server_addr):
+    host, port = server_addr
+    r = get("/arquivo_que_nao_existe.html", host=host,port=port)
+    assert r.status_code == 404
+
+def test_405_method_not_allowed(server_addr):
+    host, port = server_addr
+    r = post("/",host=host, port=port)
+    assert r.status_code == 405
+    
+    
+# RFC-compliant servers PODEM e DEVEM:
+# - Ler só os headers
+# - Decidir 413
+# - Responder
+# - Encerrar a conexão imediatamente
+# pytest tests/codes/test_status_codes.py::test_413_payload_too_large
+def test_413_payload_too_large(server_addr):
+    host, port = server_addr
+    MB = 1024 * 1024 # 1MB
+    max_body_mb = 150 # Este valor vai ser multiplicado por 1mb; DEVE bater com o .conf
+    big_body = b"a" * ((max_body_mb + 1) * MB)  # maior que max_body_size
+    
+    request = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Content-Length: " + str(len(big_body)).encode() + b"\r\n"
+        b"\r\n"
+    )
+    r = send_raw_http(request, host=host, port=port)
+    
+    assert b"413" in r
+
+## Testa o 413 em um chunked(quando não se tem content length)
+def test_413_payload_too_large_chunked(server_addr):
+    host, port = server_addr
+    MB = 1024 * 1024
+    max_body_mb = 150  # DEVE bater com o .conf
+    chunk_size = 8192
+
+    # host = "localhost"
+    # port = 8080
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.001)
+    s.connect((host, port))
+
+    header = (
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"Connection: close\r\n\r\n"
+    )
+    s.sendall(header)
+
+    sent_bytes = 0
+    response = b""
+
+    try:
+        while sent_bytes <= (max_body_mb + 1) * MB:
+            data = b"a" * chunk_size
+            size_hex = hex(len(data))[2:].encode()
+
+            # size
+            s.sendall(size_hex + b"\r\n")
+            # data
+            s.sendall(data + b"\r\n")
+
+            sent_bytes += len(data)
+
+            # tenta capturar resposta antecipada
+            try:
+                part = s.recv(4096)
+                if part:
+                    response += part
+                    break
+            except socket.timeout:
+                pass
+
+        # chunk final (APENAS UMA VEZ)
+        s.sendall(b"0\r\n\r\n")
+        
+        ## esperar resposta do servidor
+        for _ in range(500):
+            try:
+                part = s.recv(4096)
+                if part:
+                    response += part
+                    break
+            except socket.timeout:
+                pass
+
+    except (BrokenPipeError, ConnectionResetError):
+        # servidor abortou cedo → esperado
+        pass
+    finally:
+        s.close()
+
+    print(response.decode(errors="ignore"))
+    print(response)
+
+    assert b"413" in response
+
+
+
+def test_400_bad_request(server_addr):
+    host, port = server_addr
+    request = (
+        b"POST / HTTP/1.1\r\n"
+        b"Host:\r\n"
+        b"\r\n"
+    )
+
+    response = send_raw_http(request, host=host, port=port)
+    assert b"400" in response
+    
+def test_400_bad_request_method(server_addr):
+    host, port = server_addr
+    request = (
+        b"PO ST / HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"\r\n"
+    )
+
+    response = send_raw_http(request, host=host, port=port)
+    assert b"400" in response
+    
+
+# 403 necessário modificar o Path para poder criar o arquivo secret.html dentro de html/
+# def test_403_forbidden(tmp_path):
+#     secret = Path("tests./conf/www/secret.html")
+#     secret.write_text("secret")
+#     secret.chmod(0o000)
+
+#     r = get("/secret.html")
+#     assert r.status_code == 403
+
+#     secret.chmod(0o644)
+
+--- ./tests/codes/test_client_disconnect.py ---
+import socket
+import pytest
+
+@pytest.mark.manual
+def test_client_disconnect_mid_body(server_addr):
+    host, port = server_addr
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+    s.sendall(
+        b"POST /upload HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Content-Length: 100\r\n\r\n"
+        b"12345"
+    )
+    s.close()  # fecha no meio
+
+    # PASSA se o servidor não crashar
+    assert True
+
+--- ./tests/codes/test_idle_client.py ---
+import socket
+import time
+
+# colocar ip e porta utilizados
+# Testar se um cliente ocioso bloaqueia o servidor
+def test_idle_client_timeout(server_addr):
+    host, port = server_addr
+    s = socket.socket()
+    s.connect((host, port))
+    time.sleep(15)
+    s.close()
+    assert True
