@@ -1,0 +1,17 @@
+# Cache do Pytest
+.pytest_cache/
+
+# Bytecode do Python (muito importante ignorar)
+__pycache__/
+*.pyc
+
+# Arquivos de cobertura de testes (se usar pytest-cov)
+.coverage
+htmlcov/
+
+# Aquivo de 10MB
+tests/pytest/files/text_10mb.txt
+# Aquivo de 100MB
+tests/pytest/files/text_100mb.txt
+# Aquivo de video
+tests/pytest/files/video.mp4

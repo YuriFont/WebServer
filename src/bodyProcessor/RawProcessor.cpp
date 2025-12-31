@@ -5,7 +5,13 @@ std::map<std::string, std::string> RawProcessor::_types;
 
 RawProcessor::RawProcessor(const ServerConfig& config, const Location& location, const HttpRequest& request) : ABodyProcessor::ABodyProcessor(config), _location(location), _bytesReceived(0), _response(NULL) {
     initTypes();
-    _contentType = request.getHeader("Content-Type");
+    std::string type = request.getHeader("Content-Type");
+
+    size_t splitType = type.find(";");
+    if (splitType != std::string::npos) {
+        type = type.substr(0, splitType);
+    }
+    _contentType = type;
     _contentLength = request.getContentLength();
 };
 
@@ -61,6 +67,7 @@ void RawProcessor::handleChunk(const std::string& chunk) {
         _response = new HttpResponse();
         _isFinished = true;
         _response->setStatus(413);
+        _response->setConnectionClose(true);
         return;
     }
     if (_fileName.empty()) {
@@ -141,6 +148,17 @@ void RawProcessor::initTypes() {
     _types["csv"] = ".csv";
 };
 
+void RawProcessor::cleanup() {
+    if (_outFile.is_open()) {
+        _outFile.close();
+    }
+
+    if (!_fileName.empty()) {
+        remove(_fileName.c_str());
+        _fileName.clear();
+    }
+}
+
 std::string RawProcessor::getExtension(const std::string& contentType) {
 
     if (_types.count(contentType)) {
@@ -164,12 +182,14 @@ void RawProcessor::handleRawPost(const std::string& chunk) {
         _response = new HttpResponse();
     if (_types.count(_contentType)) {
         if (!append(chunk, chunk.size())) {
+            cleanup();
             _response->setStatus(500);
             _response->setContentType("text/html");
             _response->setBody("Fail upload file");
             _isFinished = true;
         }
     } else {
+        cleanup();
         _response->setStatus(415);
         _response->setContentType("text/html");
         _response->setBody("415 Unsupported Media Type: The server only supports form uploads.");

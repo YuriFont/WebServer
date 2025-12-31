@@ -7,11 +7,14 @@
 #include "../../include/utils/Utils.hpp"
 #include "../../include/utils/ErrorPage.hpp"
 
-Server::Server(const Config &config) : _config(config), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
+Server::Server(const Config &config) : _config(config), epoll_fd(-1), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
 
 Server::~Server() {
+
     for (size_t i = 0; i < server_fds.size(); i++) {
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, server_fds[i], NULL);
+        if (this->epoll_fd != -1){
+            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, server_fds[i], NULL);
+        }
         close(server_fds[i]);
     }
 
@@ -33,19 +36,27 @@ Server::~Server() {
         }
         delete cgi;
     }
-    close(epoll_fd);
+    if (epoll_fd != -1)
+        close(epoll_fd);
 }
 
 void Server::initAllSockets() {
     for (size_t i = 0; i < _config.servers.size(); i++) {
         ServerConfig sc = _config.servers[i];
         int fd = sc.initSocket();
+        if (fd == -1) {
+            this->shutdown();
+            return;
+        }
         server_fds.push_back(fd);
         server_by_fd[fd] = sc;
     }
 }
 
 void Server::registerSocketsInEpoll() {
+
+    if (!this->_running)
+        return;
     epoll_fd = epoll_create(1);
     if (epoll_fd == -1) {
         perror("epoll_create");
@@ -174,9 +185,10 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
 void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
-    resp.setConnectionClose(client.getCloseConnection());
+    resp.setConnectionClose(true);
+    // resp.setConnectionClose(client.getCloseConnection());
     client.setResponse(resp.toString());
-    // client.setCloseConnection(resp.isConnectionClose());
+    client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
 
     epoll_event& event = client.getDataEvent();
@@ -263,17 +275,19 @@ void Server::handleClientRequest(int client_fd) {
     }
     Client& client = clients[client_fd];
     addBuffer(client, buffer, bytes);
-    if (!client.isAllHeaders())
+    if (!client.isAllHeaders()) {
+        updateClientActivity(client_fd);
         return ;
+    }
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
     if (client.isChunked()){
-        // std::cout << client.getRequest().getBody() << std::endl;
-        if(!client.isChunkedFinished())
+        if(!client.isChunkedFinished()) {
+            updateClientActivity(client_fd);
             return;
+        }
 
         if (!client.isBodyDelivered()) {
-            // std::cout << "Vou setar o body do chuncked, tamanho atual: " << client.getChunkedBody().size() << std::endl;
             client.getRequest().setBody(client.getChunkedBody());
             client.handler->handleData(client.getRequest().getBody());
             client.eraseBody();

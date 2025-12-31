@@ -106,13 +106,11 @@ void Client::addBuffer(const std::string& request) {
             this->contentLength = this->request.getContentLength();
             std::string conection = this->request.getHeader("Connection");
             if (!conection.empty()) {
-                // std::cout << "Testando conexão fechada" << std::endl;
                 if (conection == "close"){
-                    // std::cout << "Fechando conexão" << std::endl;
                     setCloseConnection(true);
                 }
             }
-            // std::cout << this->request.getBody() << std::endl;
+            // std::cout << this->request.getBuffer() << std::endl;
             // std::cout << this->request.getMethod() << " " << this->request.getPath() << " " << this->request.getHttpVersion() << std::endl;
             this->isHeadersParsed = true;
         }
