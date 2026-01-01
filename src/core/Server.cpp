@@ -264,6 +264,23 @@ void Server::epoll_add(int fd, uint32_t events) {
     epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, fd, &ev);
 }
 
+
+void Server::prepareBadRequest(Client& client) {
+
+    HttpResponse response;
+
+    response.setHttpVersion(client.getRequest().getHttpVersion());
+    response.setConnectionClose(true);
+    response.setStatus(400);
+    client.setCodeResponseStatus(response.getStatusResponse());
+    client.setCloseConnection(true);
+    client.setResponse(response.toString());
+
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT;
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+};
+
 void Server::handleClientRequest(int client_fd) {
     
     char buffer[8192];
@@ -286,11 +303,14 @@ void Server::handleClientRequest(int client_fd) {
             updateClientActivity(client_fd);
             return;
         }
-
         if (!client.isBodyDelivered()) {
-            client.getRequest().setBody(client.getChunkedBody());
-            client.handler->handleData(client.getRequest().getBody());
-            client.eraseBody();
+            if (client.isChunkedError()) {
+                prepareBadRequest(client);
+            } else {
+                client.getRequest().setBody(client.getChunkedBody());
+                client.handler->handleData(client.getRequest().getBody());
+                client.eraseBody();
+            }
             client.setBodyDelivered(true);
         }
     }

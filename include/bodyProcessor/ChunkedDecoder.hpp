@@ -11,7 +11,6 @@ class ChunkedDecoder {
         bool isFinished() const;
         const std::string& getBody() const;
 
-    private:
         enum State {
             READ_SIZE,
             READ_SIZE_CR,
@@ -23,6 +22,9 @@ class ChunkedDecoder {
             DONE,
             ERROR
         };
+        const State& getState() const;
+
+    private:
 
         State _state;
         size_t _currentChunkSize;
