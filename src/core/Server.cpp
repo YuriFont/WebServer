@@ -185,8 +185,8 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
 void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
-    resp.setConnectionClose(true);
-    // resp.setConnectionClose(client.getCloseConnection());
+    // resp.setConnectionClose(true);
+    resp.setConnectionClose(client.getCloseConnection());
     client.setResponse(resp.toString());
     client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
