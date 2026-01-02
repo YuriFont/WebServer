@@ -62,4 +62,5 @@ class Client {
         const bool& isBodyDelivered();
         time_t  getLastActivity() const;
         void    setLastActivity(time_t t);
+        bool isChunkedError() const;
 };

@@ -10,8 +10,8 @@ __pycache__/
 htmlcov/
 
 # Aquivo de 10MB
-tests/pytest/files/text_10mb.txt
+tests/pytest/tests/files/text_10mb.txt
 # Aquivo de 100MB
-tests/pytest/files/text_100mb.txt
+tests/pytest/tests/files/text_100mb.txt
 # Aquivo de video
-tests/pytest/files/video.mp4
+tests/pytest/tests/files/video.mp4
