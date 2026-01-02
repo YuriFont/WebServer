@@ -52,7 +52,8 @@ int ServerConfig::initSocket() {
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1){
         std::cerr << "Error in socket: " << strerror(errno) << std::endl;
-        exit(EXIT_FAILURE);
+        return -1;
+        // exit(EXIT_FAILURE);
     }
     fcntl(socket_fd, F_SETFL, O_NONBLOCK);
     int opt = 1;
@@ -60,7 +61,8 @@ int ServerConfig::initSocket() {
     {
         std::cerr << "Error in setsockopt: " << strerror(errno) << std::endl;
         close(socket_fd);
-        exit(EXIT_FAILURE);
+        return -1;
+        // exit(EXIT_FAILURE);
     }
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -70,19 +72,22 @@ int ServerConfig::initSocket() {
     if (addr.sin_addr.s_addr == INADDR_NONE)
     {
         std::cerr << "Invalid IP: " << ip << std::endl;
-        exit(EXIT_FAILURE);
+        return -1;
+        // exit(EXIT_FAILURE);
     }
     if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         std::cerr << "Error in bind: " << strerror(errno) << std::endl;
         close(socket_fd);
-        exit(EXIT_FAILURE);
+        return -1;
+        // exit(EXIT_FAILURE);
     }
     if (listen(socket_fd, SOMAXCONN) < 0)
     {
         std::cerr << "Error in listen: " << strerror(errno) << std::endl;
         close(socket_fd);
-        exit(EXIT_FAILURE);
+        return -1;
+        // exit(EXIT_FAILURE);
     }
     std::cout << "Server listening on " << ip << ":" << port << std::endl;
     return socket_fd;

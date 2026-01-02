@@ -7,11 +7,14 @@
 #include "../../include/utils/Utils.hpp"
 #include "../../include/utils/ErrorPage.hpp"
 
-Server::Server(const Config &config) : _config(config), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
+Server::Server(const Config &config) : _config(config), epoll_fd(-1), _running(true), _CLIENT_TIMEOUT(CLIENT_TIMEOUT) {}
 
 Server::~Server() {
+
     for (size_t i = 0; i < server_fds.size(); i++) {
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, server_fds[i], NULL);
+        if (this->epoll_fd != -1){
+            epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, server_fds[i], NULL);
+        }
         close(server_fds[i]);
     }
 
@@ -33,19 +36,27 @@ Server::~Server() {
         }
         delete cgi;
     }
-    close(epoll_fd);
+    if (epoll_fd != -1)
+        close(epoll_fd);
 }
 
 void Server::initAllSockets() {
     for (size_t i = 0; i < _config.servers.size(); i++) {
         ServerConfig sc = _config.servers[i];
         int fd = sc.initSocket();
+        if (fd == -1) {
+            this->shutdown();
+            return;
+        }
         server_fds.push_back(fd);
         server_by_fd[fd] = sc;
     }
 }
 
 void Server::registerSocketsInEpoll() {
+
+    if (!this->_running)
+        return;
     epoll_fd = epoll_create(1);
     if (epoll_fd == -1) {
         perror("epoll_create");
@@ -174,9 +185,10 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
 void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
-    resp.setConnectionClose(client.getCloseConnection());
+    resp.setConnectionClose(true);
+    // resp.setConnectionClose(client.getCloseConnection());
     client.setResponse(resp.toString());
-    // client.setCloseConnection(resp.isConnectionClose());
+    client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
 
     epoll_event& event = client.getDataEvent();
@@ -263,32 +275,19 @@ void Server::handleClientRequest(int client_fd) {
     }
     Client& client = clients[client_fd];
     addBuffer(client, buffer, bytes);
-    if (!client.isAllHeaders())
+    if (!client.isAllHeaders()) {
+        updateClientActivity(client_fd);
         return ;
-    if (client.getRequest().hasError()) {
-        HttpResponse r;
-        r.setStatus(client.getRequest().getErrorCode());
-        r.setConnectionClose(client.getCloseConnection());
-        r.setContentType("text/html");
-        r.setBody(ErrorPage::build(400));
-
-        client.setCodeResponseStatus(r.getStatusResponse());
-        client.setResponse(r.toString());
-
-        epoll_event& ev = client.getDataEvent();
-        ev.events = EPOLLOUT;
-        epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client_fd, &ev);
-        return;
     }
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
     if (client.isChunked()){
-        // std::cout << client.getRequest().getBody() << std::endl;
-        if(!client.isChunkedFinished())
+        if(!client.isChunkedFinished()) {
+            updateClientActivity(client_fd);
             return;
+        }
 
         if (!client.isBodyDelivered()) {
-            // std::cout << "Vou setar o body do chuncked, tamanho atual: " << client.getChunkedBody().size() << std::endl;
             client.getRequest().setBody(client.getChunkedBody());
             client.handler->handleData(client.getRequest().getBody());
             client.eraseBody();
@@ -366,7 +365,7 @@ void Server::handleCgiWrite(int fd) {
                 _cgiByFd.erase(cgi->stdin_fd);
             }
         }
-    } 
+    }
     // erro ao tentar escrever no stdin do pipe no processo, já que o epoll nos mandou EPOLLOUT
     // Necessario encerrar o processo e jogar o erro para o cliente ?
     else {
@@ -376,6 +375,7 @@ void Server::handleCgiWrite(int fd) {
         _cgiByFd.erase(fd);
         close(fd);
     }
+    updateCgiActivity(fd);
 }
 
 void Server::startCgiForClient(Client& client) {
@@ -383,6 +383,7 @@ void Server::startCgiForClient(Client& client) {
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
 
     CgiProcess* cgi = cgiHandler->startCgi();
+    cgi->last_activity = time(NULL);
 
     int errorCode = 0;
     switch (cgi->status)
@@ -518,6 +519,7 @@ void Server::handleCgiRead(int fd) {
     // Vamos ler o que o pipe tinha e armazenar o resultado
     if (n > 0) {
         cgi->output.append(buffer, n);
+        updateCgiActivity(fd);
     }
     else {
         // Se n == 0 então chegamos no EOF, e esta tudo pronto para enviarmos para o cliente
@@ -548,6 +550,7 @@ void Server::handleCgiRead(int fd) {
             //remover cliente também ?
             delete cgi;
         }
+        updateCgiActivity(fd);
     }
 }
 
@@ -589,6 +592,7 @@ void Server::eventLoop() {
             }
         }
         checkClientTimeouts();
+        checkCgiTimeouts();
     }
 }
 
@@ -618,6 +622,71 @@ void Server::checkClientTimeouts() {
             removeClient(fd);
         }
     }
+}
+
+void Server::updateCgiActivity(int fd) {
+    if (_cgiByFd.count(fd))
+        _cgiByFd[fd]->last_activity = time(NULL);
+}
+
+void Server::checkCgiTimeouts() {
+    time_t now = time(NULL);
+    
+    for (std::map<int, CgiProcess*>::iterator it = _cgiByFd.begin(); it != _cgiByFd.end(); ) {
+        CgiProcess* cgi = it->second;
+        std::map<int, CgiProcess*>::iterator current = it++;
+        
+        if (now - cgi->last_activity > CGI_TIMEOUT) {
+            int fd = current->first;
+            std::cout << RED << "[CGI FD " << fd << "] Timeout after " 
+                      << CGI_TIMEOUT << "s. Killing process PID " << cgi->pid << RESET << std::endl;
+            
+            killTimedOutCgi(cgi);
+        }
+    }
+}
+
+void Server::killTimedOutCgi(CgiProcess* cgi) {
+    if (!cgi->stdin_closed) {
+        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdin_fd, NULL);
+        close(cgi->stdin_fd);
+        cgi->stdin_closed = true;
+    }
+
+    if (!cgi->stdout_closed) {
+        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cgi->stdout_fd, NULL);
+        close(cgi->stdout_fd);
+        cgi->stdout_closed = true;
+    }
+    
+    if (cgi->pid > 0) {
+        kill(cgi->pid, SIGTERM);
+        int status;
+        waitpid(cgi->pid, &status, WNOHANG);
+    }
+    
+    _cgiByFd.erase(cgi->stdin_fd);
+    _cgiByFd.erase(cgi->stdout_fd);
+    
+    if (clients.find(cgi->client_fd) != clients.end()) {
+        Client& client = clients[cgi->client_fd];
+        HttpResponse resp;
+        resp.setStatus(504);
+        resp.setConnectionClose(true);
+        resp.setBody(ErrorPage::build(504));
+        resp.setContentType("text/html");
+        
+        client.setResponse(resp.toString());
+        client.setCodeResponseStatus(resp.getStatusResponse());
+        client.setCloseConnection(true);
+        
+        epoll_event& event = client.getDataEvent();
+        event.events = EPOLLOUT;
+        epoll_ctl(epoll_fd, EPOLL_CTL_MOD, cgi->client_fd, &event);
+        removeMethodHandler(client);
+    }
+    
+    delete cgi;
 }
 
 void Server::start() {

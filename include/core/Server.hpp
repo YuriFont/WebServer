@@ -59,6 +59,10 @@ class Server {
 
         void updateClientActivity(int fd);
         void checkClientTimeouts();
+
+        void updateCgiActivity(int fd);
+        void checkCgiTimeouts();
+        void killTimedOutCgi(CgiProcess* cgi);
 };
 
 #endif
