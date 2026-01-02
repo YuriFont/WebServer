@@ -16,6 +16,8 @@ class HttpRequest {
         std::string _body;
         std::string _queryString;
         size_t _contentLength;
+        bool _hasError;
+        int _errorCode;
 
     public:
 
@@ -41,4 +43,6 @@ class HttpRequest {
         void eraseBody();
         bool isChunked() const;
         std::string extractBodyAfterHeaders();
+        bool hasError() const;
+        int getErrorCode() const;
 };
