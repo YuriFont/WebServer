@@ -118,27 +118,6 @@ check_malformed_400() {
   pass "$name status 400"
 }
 
-# 411 via raw POST without Content-Length (if your server implements 411)
-check_post_no_length_411() {
-  local name="$1" host="$2" port="$3" path="$4"
-  local first
-  first="$(python3 - <<PY
-import socket
-host="${host}"; port=int("${port}")
-path="${path}"
-req=(f"POST {path} HTTP/1.1\\r\\nHost: {host}:{port}\\r\\n\\r\\n").encode()
-s=socket.create_connection((host, port))
-s.sendall(req)
-data=s.recv(4096).decode("latin1", errors="ignore").splitlines()[0]
-print(data)
-s.close()
-PY
-)"
-  echo "— $name -> $first"
-  echo "$first" | grep -q " 411 " || fail "$name: expected 411, got: $first"
-  pass "$name status 411"
-}
-
 # 413 via big Content-Length > client_max_body_size
 check_post_too_large_413() {
   local name="$1" host="$2" port="$3" path="$4" bytes="$5"
@@ -184,7 +163,7 @@ check_redirect_location_present "8080 /oldpage has Location" "$BASE_8080" "/oldp
 check_status "8080 GET /upload"      "$BASE_8080" "GET"    "/upload" "405"
 check_header_present "8080 405 Allow on /upload (GET)" "$BASE_8080" "GET" "/upload" "Allow"
 check_status_any "8080 POST /upload" "$BASE_8080" "POST"   "/upload" "200" "201" "204" "400" "411" "415"
-# check_status_any "8080 DELETE /upload" "$BASE_8080" "DELETE" "/upload" "200" "204" "404" "400"
+check_status_any "8080 DELETE /upload" "$BASE_8080" "DELETE" "/upload" "200" "204" "404" "400" "403"
 
 # /files : GET only, autoindex on
 check_status "8080 GET /files"    "$BASE_8080" "GET"    "/files" "200"
@@ -192,7 +171,7 @@ check_status "8080 POST /files"   "$BASE_8080" "POST"   "/files" "405"
 check_header_present "8080 405 Allow on /files (POST)" "$BASE_8080" "POST" "/files" "Allow"
 
 # /readonly : GET only (you might want to serve 403 for writes; config says 405 because methods GET)
-#check_status "8080 GET /readonly"   "$BASE_8080" "GET"    "/readonly" "200"
+check_status "8080 GET /readonly"   "$BASE_8080" "GET"    "/readonly" "403"
 check_status "8080 POST /readonly"  "$BASE_8080" "POST"   "/readonly" "405"
 check_status "8080 DELETE /readonly" "$BASE_8080" "DELETE" "/readonly" "405"
 
@@ -206,25 +185,21 @@ check_status_any "8080 DELETE /secret" "$BASE_8080" "DELETE" "/secret" "403" "40
 check_status_any "8080 GET /cgi-bin" "$BASE_8080" "GET" "/cgi-bin" "200" "403" "404"
 
 # - CGI script test: MUST exist
-#check_status_any "8080 GET /cgi-bin${PY_ROUTE}" "$BASE_8080" "GET" "/cgi-bin${PY_ROUTE}" "200" "500"
-#check_status_any "8080 POST /cgi-bin${PY_ROUTE}" "$BASE_8080" "POST" "/cgi-bin${PY_ROUTE}" "200" "500" "405" "411" "400"
+check_status_any "8080 GET /cgi-bin${PY_ROUTE}" "$BASE_8080" "GET" "/cgi-bin${PY_ROUTE}" "200" "500"
+check_status_any "8080 POST /cgi-bin${PY_ROUTE}" "$BASE_8080" "POST" "/cgi-bin${PY_ROUTE}" "200" "500" "405" "411" "400"
 
 echo
 echo "== 8080 protocol-level errors =="
 # malformed request should be 400 (if you implemented header validation properly)
 check_malformed_400 "8080 malformed Host header => 400" "127.0.0.1" "8080"
 
-# 411 (POST without Content-Length) on a POST route: /upload should produce 411 if implemented
-# If your server does not implement 411, this will fail (by design).
-#check_post_no_length_411 "8080 POST /upload without Content-Length => 411" "127.0.0.1" "8080" "/upload"
-
 # 413: client_max_body_size 150000000 -> send 150000001
 # WARNING: This sends a huge payload. We'll avoid sending the whole body by only declaring the Content-Length
 # in some servers it's enough; in strict servers it may block waiting for bytes.
 # Here we actually send the bytes -> can be slow/heavy. Reduce if you implemented early reject by header only.
-echo "⚠️  413 test may be heavy (150MB+). If your server rejects early by header, lower this safely."
-big=$((150000000 + 1))
-#check_post_too_large_413 "8080 POST too large => 413" "127.0.0.1" "8080" "/upload" "$big"
+# echo "⚠️  413 test may be heavy (150MB+). If your server rejects early by header, lower this safely."
+# big=$((150000000 + 1))
+# check_post_too_large_413 "8080 POST too large => 413" "127.0.0.1" "8080" "/upload" "$big"
 
 echo
 echo "=============================="
@@ -233,7 +208,7 @@ echo "=============================="
 
 check_status_any "8082 GET /"    "$BASE_8082" "GET" "/" "200" "404"
 check_status_any "8082 POST /"   "$BASE_8082" "POST" "/" "200" "201" "204" "400" "411" "415"
-#check_status_any "8082 DELETE /" "$BASE_8082" "DELETE" "/" "200" "204" "404" "400"
+check_status_any "8082 DELETE /" "$BASE_8082" "DELETE" "/" "200" "204" "404" "400" "403"
 
 check_status "8082 GET /data"  "$BASE_8082" "GET" "/data" "200"
 check_status "8082 POST /data" "$BASE_8082" "POST" "/data" "405"
@@ -250,7 +225,7 @@ echo "=============================="
 
 check_status_any "8083 GET /"    "$BASE_8083" "GET" "/" "200" "404"
 check_status_any "8083 POST /"   "$BASE_8083" "POST" "/" "200" "201" "204" "400" "411" "415"
-#check_status_any "8083 DELETE /" "$BASE_8083" "DELETE" "/" "200" "204" "404" "400"
+check_status_any "8083 DELETE /" "$BASE_8083" "DELETE" "/" "200" "204" "404" "400" "403"
 
 check_status "8083 GET /data"  "$BASE_8083" "GET" "/data" "200"
 check_status "8083 POST /data" "$BASE_8083" "POST" "/data" "405"
