@@ -296,6 +296,21 @@ void Server::handleClientRequest(int client_fd) {
         updateClientActivity(client_fd);
         return ;
     }
+    if (client.getRequest().hasError()) {
+        HttpResponse r;
+        r.setStatus(client.getRequest().getErrorCode());
+        r.setConnectionClose(client.getCloseConnection());
+        r.setContentType("text/html");
+        r.setBody(ErrorPage::build(400));
+
+        client.setCodeResponseStatus(r.getStatusResponse());
+        client.setResponse(r.toString());
+
+        epoll_event& ev = client.getDataEvent();
+        ev.events = EPOLLOUT;
+        epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client_fd, &ev);
+        return;
+    }
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
     if (client.isChunked()){
