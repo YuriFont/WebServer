@@ -67,7 +67,6 @@ HttpResponse& DeleteHandler::process(const HttpRequest &request, const Location 
         else
             _response->setStatus(500);
     } else if (S_ISDIR(info.st_mode)) {
-        // retornar not allow 403, diretorio ou permissao
         _response->setStatus(403);
     } else if (remove(path.c_str()) == 0) {
         // se der error ao remover mandar 500;
