@@ -111,6 +111,7 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
 }
 
 void Server::removeClient(int client_fd) {
+    logClientDesconected(client_fd);
     epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
     removeMethodHandler(clients[client_fd]);
     clients.erase(client_fd);
@@ -124,7 +125,7 @@ void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize
         return;
 
     if (bytes == 0) {
-        logClientDesconected(client_fd);
+        //logClientDesconected(client_fd);
         removeClient(client_fd);
         return;
     }
@@ -185,8 +186,8 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
 void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
-    // resp.setConnectionClose(true);
-    resp.setConnectionClose(client.getCloseConnection());
+    resp.setConnectionClose(true);
+    //resp.setConnectionClose(client.getCloseConnection());
     client.setResponse(resp.toString());
     client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
