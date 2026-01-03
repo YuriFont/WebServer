@@ -183,10 +183,33 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
 }
 
 void Server::prepareResponse(const int &client_fd, Client& client) {
-    
     HttpResponse& resp = client.handler->getResponse();
     resp.setConnectionClose(true);
     // resp.setConnectionClose(client.getCloseConnection());
+
+    ServerConfig* serverCfg = client_server[client_fd];
+
+    if (serverCfg != NULL) {
+        int status = resp.getStatusCode();
+
+        std::map<int, std::string>::const_iterator it =
+            serverCfg->error_pages.find(status);
+
+        if (status >= 400 && it != serverCfg->error_pages.end()) {
+            const std::string& path = it->second;
+
+            std::ifstream file(path.c_str());
+            if (file.is_open())
+            {
+                std::ostringstream buffer;
+                buffer << file.rdbuf();
+
+                resp.setBody(buffer.str());
+                resp.setContentType(Utils::getContentType(path));
+            }
+        }
+    }
+
     client.setResponse(resp.toString());
     client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
@@ -194,7 +217,6 @@ void Server::prepareResponse(const int &client_fd, Client& client) {
     epoll_event& event = client.getDataEvent();
     event.events = EPOLLOUT;
     epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
-    // finalizeClientConnection(client_fd, client, closeConnection);
 }
 
 void Server::addBuffer(Client& client, char* buffer, int& bytes) {
