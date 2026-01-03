@@ -183,32 +183,40 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
     std::cout << "[FD " << client_fd << "]" << " ---> " << client.getRequest().getMethod() << " " << client.getRequest().getPath() << " (" << client.getCodeResponseStatus() <<  ") - "<< client.getLenBody() << " bytes" << std::endl;
 }
 
+void Server::applyErrorPage(int client_fd, HttpResponse& resp)
+{
+    ServerConfig* serverCfg = client_server[client_fd];
+    if (!serverCfg)
+        return;
+
+    int status = resp.getStatusCode();
+    if (status < 400)
+        return;
+
+    std::map<int, std::string>::const_iterator it = serverCfg->error_pages.find(status);
+
+    if (it == serverCfg->error_pages.end())
+        return;
+
+    const std::string& path = it->second;
+
+    std::ifstream file(path.c_str());
+    if (!file.is_open())
+        return;
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+
+    resp.setBody(buffer.str());
+    resp.setContentType(Utils::getContentType(path));
+}
+
 void Server::prepareResponse(const int &client_fd, Client& client) {
     HttpResponse& resp = client.handler->getResponse();
     resp.setConnectionClose(true);
     // resp.setConnectionClose(client.getCloseConnection());
 
-    ServerConfig* serverCfg = client_server[client_fd];
-
-    if (serverCfg != NULL) {
-        int status = resp.getStatusCode();
-
-        std::map<int, std::string>::const_iterator it = serverCfg->error_pages.find(status);
-
-        if (status >= 400 && it != serverCfg->error_pages.end()) {
-            const std::string& path = it->second;
-
-            std::ifstream file(path.c_str());
-            if (file.is_open())
-            {
-                std::ostringstream buffer;
-                buffer << file.rdbuf();
-
-                resp.setBody(buffer.str());
-                resp.setContentType(Utils::getContentType(path));
-            }
-        }
-    }
+    applyErrorPage(client_fd, resp);
 
     client.setResponse(resp.toString());
     client.setCloseConnection(resp.isConnectionClose());
@@ -468,26 +476,7 @@ void Server::startCgiForClient(Client& client) {
         response.setBody(ErrorPage::build(errorCode));
         response.setContentType("text/html");
 
-        ServerConfig* serverCfg = client_server[cgi->client_fd];
-
-        if (serverCfg != NULL) {
-            int status = response.getStatusCode();
-            std::cout << status << " - status code.\n";
-
-            std::map<int, std::string>::const_iterator it = serverCfg->error_pages.find(status);
-
-            if (status >= 400 && it != serverCfg->error_pages.end()) {
-                const std::string& path = it->second;
-
-                std::ifstream file(path.c_str());
-                if (file.is_open()) {
-                    std::ostringstream buffer;
-                    buffer << file.rdbuf();
-                    response.setBody(buffer.str());
-                    response.setContentType(Utils::getContentType(path));
-                }
-            }
-        }
+        applyErrorPage(client.getClienteFd(), response);
 
         client.setCloseConnection(response.isConnectionClose());
         client.setCodeResponseStatus(response.getStatusResponse());
@@ -607,26 +596,7 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
     
     response = cgiHandler->responseHTTP(cgi->output);
-
-    ServerConfig* serverCfg = client_server[cgi->client_fd];
-
-    if (serverCfg != NULL) {
-        int status = response.getStatusCode();
-
-        std::map<int, std::string>::const_iterator it = serverCfg->error_pages.find(status);
-
-        if (status >= 400 && it != serverCfg->error_pages.end()) {
-            const std::string& path = it->second;
-
-            std::ifstream file(path.c_str());
-            if (file.is_open()) {
-                std::ostringstream buffer;
-                buffer << file.rdbuf();
-                response.setBody(buffer.str());
-                response.setContentType(Utils::getContentType(path));
-            }
-        }
-    }
+    applyErrorPage(cgi->client_fd, response);
     
     client.setCloseConnection(response.isConnectionClose());
     client.setCodeResponseStatus(response.getStatusResponse());

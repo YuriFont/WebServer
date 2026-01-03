@@ -61,6 +61,7 @@ class Server {
         void killTimedOutCgi(CgiProcess* cgi);
         void prepareBadRequest(Client& client);
         bool handleCgiFailure(Client& client, CgiProcess* cgi);
+        void applyErrorPage(int client_fd, HttpResponse& resp);
 };
 
 #endif
