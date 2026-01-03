@@ -782,9 +782,9 @@ void Server::killTimedOutCgi(CgiProcess* cgi) {
     }
     
     if (cgi->pid > 0) {
-        kill(cgi->pid, SIGTERM);
+        kill(cgi->pid, SIGKILL);
         int status;
-        waitpid(cgi->pid, &status, WNOHANG);
+        waitpid(cgi->pid, &status, 0);
     }
     
     _cgiByFd.erase(cgi->stdin_fd);
