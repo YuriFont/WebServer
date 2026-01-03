@@ -18,7 +18,7 @@ def test_post_multipart_multiple_real_files(server_addr):
     img = (FILES_DIR / "image.png").read_bytes()
     json = (FILES_DIR / "test.json").read_bytes()
     pdf = (FILES_DIR / "webserv-1.pdf").read_bytes()
-    video = (FILES_DIR / "video.mp4").read_bytes()
+    video = (FILES_DIR / "video.mp4")
     
     parts = [
         {
@@ -47,11 +47,11 @@ def test_post_multipart_multiple_real_files(server_addr):
         }
     ]
     
-    if (FILES_DIR / "video.mp4").exists():
+    if video.exists():
         parts.append({
             "name": b"file",
             "filename": b"video_raw_multipart.mp4",
-            "content": video,
+            "content": video.read_bytes(),
             "type": b"video/mp4",
     })
         

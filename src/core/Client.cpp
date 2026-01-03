@@ -177,7 +177,18 @@ void Client::feedChunked(const char* data, size_t len) {
 }
 
 bool Client::isChunkedFinished() const {
-    return _chunkedDecoder.isFinished();
+    if (_chunkedDecoder.isFinished())
+        return true;
+    else if (_chunkedDecoder.getState() == ChunkedDecoder::ERROR) {
+        return true;
+    }
+    return false;
+}
+
+bool Client::isChunkedError() const {
+    if (_chunkedDecoder.getState() == ChunkedDecoder::ERROR)
+        return true;
+    return false;
 }
 
 const std::string& Client::getChunkedBody() const {

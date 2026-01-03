@@ -28,6 +28,7 @@ struct CgiProcess {
     CgiStatus   status;
 
     time_t last_activity;
+    int wait_status;
 
     CgiProcess()
         : stdin_fd(-1),
@@ -38,7 +39,8 @@ struct CgiProcess {
           stdout_closed(false),
           stdin_closed(false),
           status(CGI_OK),
-          last_activity(time(NULL)) {}
+          last_activity(time(NULL)),
+          wait_status(-1) {}
 };
 
 #endif

@@ -45,6 +45,8 @@ static std::string getTitle(int code)
         return "Method Not Allowed";
     if (code == 413) 
         return "Payload Too Large";
+    if (code == 504)
+        return "Gateway Timeout";
 
     return "Internal Server Error";
 }
@@ -61,6 +63,8 @@ static std::string getMessage(int code)
         return "The HTTP method is not allowed for this resource.";
     if (code == 413) 
         return "The request body exceeds the allowed size.";
+    if (code == 504)
+        return "The request timed out. The server took too long to respond.";
 
     return "An unexpected error occurred on the server.";
 }

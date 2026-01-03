@@ -47,22 +47,20 @@ class Server {
         void logClientDesconected(const int &client_fd);
         void logClienteConected(const int &client_fd);
         void logClienteRequest(const int &client_fd, Client& client);
-
         void epoll_add(int fd, uint32_t events);
         void finalizeCgiResponse(CgiProcess* cgi);
-        
         void startCgiForClient(Client& client);
         void handleCgiEvent(int fd, uint32_t ev);
         void handleCgiWrite(int fd);
         void handleCgiRead(int fd);
         void removeCgiFd(const int& fd);
-
         void updateClientActivity(int fd);
         void checkClientTimeouts();
-
         void updateCgiActivity(int fd);
         void checkCgiTimeouts();
         void killTimedOutCgi(CgiProcess* cgi);
+        void prepareBadRequest(Client& client);
+        bool handleCgiFailure(Client& client, CgiProcess* cgi);
 };
 
 #endif

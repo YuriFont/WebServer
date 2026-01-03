@@ -96,8 +96,8 @@ void GetHandler::isDir(const std::string& path, const HttpRequest &request, cons
         return ;
     }
     //Arquivo forbidden
-    response.setStatus(404);
-    response.setBody(ErrorPage::build(404));
+    response.setStatus(403);
+    response.setBody(ErrorPage::build(403));
     response.setContentType("text/html");
 }
 
@@ -120,9 +120,9 @@ HttpResponse& GetHandler::process(const HttpRequest &request, const Location &lo
     }
 
     //Verificar se o arquivo/dir existe
-    if (stat(path.c_str(), &info) != 0){
-        //Arquivo não encontrado
-        _response->setStatus(404);
+    if (stat(path.c_str(), &info) != 0) {
+        if (errno == EACCES) _response->setStatus(403);
+        else _response->setStatus(404); // ENOENT etc
         _response->setBody(ErrorPage::build(404));
         _response->setContentType("text/html");
         return *_response;

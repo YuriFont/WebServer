@@ -17,7 +17,7 @@ def test_post_multipart_multiple_real_files_chunked(server_addr):
     img = (FILES_DIR / "image.png").read_bytes()
     json_file = (FILES_DIR / "test.json").read_bytes()
     pdf = (FILES_DIR / "webserv-1.pdf").read_bytes()
-    video = (FILES_DIR / "video.mp4").read_bytes()
+    video = (FILES_DIR / "video.mp4")
 
     # Função auxiliar para criar um chunk
     def to_chunk(data: bytes) -> bytes:
@@ -58,12 +58,13 @@ def test_post_multipart_multiple_real_files_chunked(server_addr):
     chunks.append(to_chunk(pdf))
 
     # file5 - video
-    chunks.append(to_chunk(
-        f"--{boundary}\r\n"
-        "Content-Disposition: form-data; name=\"file5\"; filename=\"video_chunked_multipart.mp4\"\r\n"
-        "Content-Type: video/mp4\r\n\r\n".encode()
-    ))
-    chunks.append(to_chunk(video))
+    if (video.exists()):
+        chunks.append(to_chunk(
+            f"--{boundary}\r\n"
+            "Content-Disposition: form-data; name=\"file5\"; filename=\"video_chunked_multipart.mp4\"\r\n"
+            "Content-Type: video/mp4\r\n\r\n".encode()
+        ))
+        chunks.append(to_chunk(video.read_bytes()))
 
     # fechamento do multipart
     chunks.append(to_chunk(f"--{boundary}--\r\n".encode()))

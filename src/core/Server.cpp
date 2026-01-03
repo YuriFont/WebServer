@@ -111,6 +111,7 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
 }
 
 void Server::removeClient(int client_fd) {
+    logClientDesconected(client_fd);
     epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
     removeMethodHandler(clients[client_fd]);
     clients.erase(client_fd);
@@ -124,7 +125,7 @@ void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize
         return;
 
     if (bytes == 0) {
-        logClientDesconected(client_fd);
+        //logClientDesconected(client_fd);
         removeClient(client_fd);
         return;
     }
@@ -285,6 +286,23 @@ void Server::epoll_add(int fd, uint32_t events) {
     epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, fd, &ev);
 }
 
+
+void Server::prepareBadRequest(Client& client) {
+
+    HttpResponse response;
+
+    response.setHttpVersion(client.getRequest().getHttpVersion());
+    response.setConnectionClose(true);
+    response.setStatus(400);
+    client.setCodeResponseStatus(response.getStatusResponse());
+    client.setCloseConnection(true);
+    client.setResponse(response.toString());
+
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT;
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+};
+
 void Server::handleClientRequest(int client_fd) {
     
     char buffer[8192];
@@ -300,6 +318,21 @@ void Server::handleClientRequest(int client_fd) {
         updateClientActivity(client_fd);
         return ;
     }
+    if (client.getRequest().hasError()) {
+        HttpResponse r;
+        r.setStatus(client.getRequest().getErrorCode());
+        r.setConnectionClose(client.getCloseConnection());
+        r.setContentType("text/html");
+        r.setBody(ErrorPage::build(400));
+
+        client.setCodeResponseStatus(r.getStatusResponse());
+        client.setResponse(r.toString());
+
+        epoll_event& ev = client.getDataEvent();
+        ev.events = EPOLLOUT;
+        epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client_fd, &ev);
+        return;
+    }
     if (client.handler == NULL)
         client.handler = buildMethodHandler(client, client_fd);
     if (client.isChunked()){
@@ -307,11 +340,14 @@ void Server::handleClientRequest(int client_fd) {
             updateClientActivity(client_fd);
             return;
         }
-
         if (!client.isBodyDelivered()) {
-            client.getRequest().setBody(client.getChunkedBody());
-            client.handler->handleData(client.getRequest().getBody());
-            client.eraseBody();
+            if (client.isChunkedError()) {
+                prepareBadRequest(client);
+            } else {
+                client.getRequest().setBody(client.getChunkedBody());
+                client.handler->handleData(client.getRequest().getBody());
+                client.eraseBody();
+            }
             client.setBodyDelivered(true);
         }
     }
@@ -489,6 +525,48 @@ void Server::removeCgiFd(const int& fd) {
     _cgiByFd.erase(fd);
 }
 
+bool Server::handleCgiFailure(Client& client, CgiProcess* cgi) {
+    bool cgiFailed = false;
+
+    if (cgi->wait_status == -1) {
+        cgiFailed = true; 
+    }
+    else if (WIFSIGNALED(cgi->wait_status)) {
+        cgiFailed = true;
+    } else if (WIFEXITED(cgi->wait_status) && WEXITSTATUS(cgi->wait_status) != 0) {
+        cgiFailed = true;
+    }
+
+    if (!cgiFailed)
+        return false;
+
+    HttpResponse resp;
+    resp.setStatus(500);
+    resp.setContentType("text/html");
+    resp.setBody(ErrorPage::build(500));
+    resp.setConnectionClose(true);
+
+    client.setCloseConnection(true);
+    client.setCodeResponseStatus(resp.getStatusResponse());
+    client.setResponse(resp.toString());
+
+    if (!cgi->stdin_closed) {
+        cgi->stdin_closed = true;
+        removeCgiFd(cgi->stdin_fd);
+    }
+    if (!cgi->stdout_closed) {
+        cgi->stdout_closed = true;
+        removeCgiFd(cgi->stdout_fd);
+    }
+
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT;
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+
+    delete cgi;
+    return true;
+}
+
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
     
     if (clients.find(cgi->client_fd) == clients.end()) {
@@ -520,6 +598,9 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
         delete cgi;
         return;
     }
+
+    if (handleCgiFailure(client, cgi))
+        return;
 
     HttpResponse response;
 
@@ -575,7 +656,6 @@ void Server::handleCgiRead(int fd) {
     CgiProcess* cgi = _cgiByFd[fd];
     char buffer[4096];
 
-
     ssize_t n = read(fd, buffer, sizeof(buffer));
     // Vamos ler o que o pipe tinha e armazenar o resultado
     if (n > 0) {
@@ -593,8 +673,19 @@ void Server::handleCgiRead(int fd) {
                 cgi->stdout_closed = true;
                 removeCgiFd(cgi->stdout_fd);
             }
-            waitpid(cgi->pid, NULL, 0);
+            int wstatus = 0;
+            pid_t w;
+            do {
+                w = waitpid(cgi->pid, &wstatus, 0);
+            } while (w == -1 && errno == EINTR);
+
+            if (w == cgi->pid)
+                cgi->wait_status = wstatus;
+            else
+                cgi->wait_status = -1;
+
             finalizeCgiResponse(cgi);
+
         }
         // Se o n < 0 então e provavelmente um erro pois o epoll nos notificou que tinha dados para leitura
         else {
@@ -663,7 +754,7 @@ void Server::shutdown() {
 
 void signalHandler(int signum) {
     (void)signum;
-    waitpid(-1, NULL, WNOHANG);
+    //waitpid(-1, NULL, WNOHANG);
 }
 
 void Server::updateClientActivity(int fd) {

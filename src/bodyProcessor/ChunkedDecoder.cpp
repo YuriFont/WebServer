@@ -11,6 +11,10 @@ ChunkedDecoder::ChunkedDecoder() {
     reset();
 }
 
+const ChunkedDecoder::State& ChunkedDecoder::getState() const {
+    return this->_state;
+};
+
 /*
  * Reseta completamente o estado interno do decoder.
  * Deve ser chamado sempre que um novo request chunked começa
