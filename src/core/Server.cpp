@@ -482,6 +482,47 @@ void Server::removeCgiFd(const int& fd) {
     _cgiByFd.erase(fd);
 }
 
+bool Server::handleCgiFailure(Client& client, CgiProcess* cgi) {
+    bool cgiFailed = false;
+
+    if (cgi->wait_status == -1) {
+        cgiFailed = true;
+    } else if (WIFSIGNALED(cgi->wait_status)) {
+        cgiFailed = true;
+    } else if (WIFEXITED(cgi->wait_status) && WEXITSTATUS(cgi->wait_status) != 0) {
+        cgiFailed = true;
+    }
+
+    if (!cgiFailed)
+        return false;
+
+    HttpResponse resp;
+    resp.setStatus(500);
+    resp.setContentType("text/html");
+    resp.setBody(ErrorPage::build(500));
+    resp.setConnectionClose(true);
+
+    client.setCloseConnection(true);
+    client.setCodeResponseStatus(resp.getStatusResponse());
+    client.setResponse(resp.toString());
+
+    if (!cgi->stdin_closed) {
+        cgi->stdin_closed = true;
+        removeCgiFd(cgi->stdin_fd);
+    }
+    if (!cgi->stdout_closed) {
+        cgi->stdout_closed = true;
+        removeCgiFd(cgi->stdout_fd);
+    }
+
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT;
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+
+    delete cgi;
+    return true;
+}
+
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
     
     if (clients.find(cgi->client_fd) == clients.end()) {
@@ -513,6 +554,9 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
         delete cgi;
         return;
     }
+
+    if (handleCgiFailure(client, cgi))
+        return;
 
     HttpResponse response;
 
@@ -568,8 +612,15 @@ void Server::handleCgiRead(int fd) {
                 cgi->stdout_closed = true;
                 removeCgiFd(cgi->stdout_fd);
             }
-            waitpid(cgi->pid, NULL, 0);
+            int wstatus = 0;
+            pid_t w = waitpid(cgi->pid, &wstatus, 0);
+            if (w > 0)
+                cgi->wait_status = wstatus;
+            else
+                cgi->wait_status = -1; // fallback (não conseguiu obter)
+
             finalizeCgiResponse(cgi);
+
         }
         // Se o n < 0 então e provavelmente um erro pois o epoll nos notificou que tinha dados para leitura
         else {
