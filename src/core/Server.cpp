@@ -486,8 +486,9 @@ bool Server::handleCgiFailure(Client& client, CgiProcess* cgi) {
     bool cgiFailed = false;
 
     if (cgi->wait_status == -1) {
-        cgiFailed = true;
-    } else if (WIFSIGNALED(cgi->wait_status)) {
+        cgiFailed = true; 
+    }
+    else if (WIFSIGNALED(cgi->wait_status)) {
         cgiFailed = true;
     } else if (WIFEXITED(cgi->wait_status) && WEXITSTATUS(cgi->wait_status) != 0) {
         cgiFailed = true;
@@ -594,7 +595,6 @@ void Server::handleCgiRead(int fd) {
     CgiProcess* cgi = _cgiByFd[fd];
     char buffer[4096];
 
-
     ssize_t n = read(fd, buffer, sizeof(buffer));
     // Vamos ler o que o pipe tinha e armazenar o resultado
     if (n > 0) {
@@ -613,11 +613,15 @@ void Server::handleCgiRead(int fd) {
                 removeCgiFd(cgi->stdout_fd);
             }
             int wstatus = 0;
-            pid_t w = waitpid(cgi->pid, &wstatus, 0);
-            if (w > 0)
+            pid_t w;
+            do {
+                w = waitpid(cgi->pid, &wstatus, 0);
+            } while (w == -1 && errno == EINTR);
+
+            if (w == cgi->pid)
                 cgi->wait_status = wstatus;
             else
-                cgi->wait_status = -1; // fallback (não conseguiu obter)
+                cgi->wait_status = -1;
 
             finalizeCgiResponse(cgi);
 
@@ -689,7 +693,7 @@ void Server::shutdown() {
 
 void signalHandler(int signum) {
     (void)signum;
-    waitpid(-1, NULL, WNOHANG);
+    //waitpid(-1, NULL, WNOHANG);
 }
 
 void Server::updateClientActivity(int fd) {
