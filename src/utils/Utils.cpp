@@ -109,14 +109,44 @@ bool Utils::validTraversalPath(const std::string &rawPath, const std::string &ro
 }
 
 std::string Utils::getContentType(const std::string& path) {
-    if (path.find(".html") != std::string::npos) return "text/html";
-    if (path.find(".css") != std::string::npos) return "text/css";
-    if (path.find(".js") != std::string::npos) return "application/javascript";
-    if (path.find(".png") != std::string::npos) return "image/png";
-    if (path.find(".ico") != std::string::npos) return "image/vnd.microsoft.icon";
-    if (path.find(".zip") != std::string::npos) return "application/zip";
-    if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) return "image/jpeg";
-    return "text/plain"; // default
+
+    static std::map<std::string, std::string> mimeTypes;
+
+    if (mimeTypes.empty()) {
+
+        mimeTypes[".html"] = "text/html";
+        mimeTypes[".htm"]  = "text/html";
+        mimeTypes[".css"]  = "text/css";
+        mimeTypes[".js"]   = "application/javascript";
+        
+        mimeTypes[".png"]  = "image/png";
+        mimeTypes[".jpg"]  = "image/jpeg";
+        mimeTypes[".jpeg"] = "image/jpeg";
+        mimeTypes[".gif"]  = "image/gif";
+        mimeTypes[".bmp"]  = "image/bmp";
+        mimeTypes[".ico"]  = "image/vnd.microsoft.icon"; 
+        mimeTypes[".svg"]  = "image/svg+xml";
+        
+        mimeTypes[".txt"]  = "text/plain";
+        mimeTypes[".pdf"]  = "application/pdf";
+        mimeTypes[".json"] = "application/json";
+        mimeTypes[".xml"]  = "application/xml";
+        mimeTypes[".zip"]  = "application/zip";
+        
+        mimeTypes[".mp3"]  = "audio/mpeg";
+        mimeTypes[".mp4"]  = "video/mp4";
+    }
+    
+    size_t dotPos = path.rfind('.');
+    
+    if (dotPos != std::string::npos) {
+        std::string ext = path.substr(dotPos);
+        std::map<std::string, std::string>::iterator it = mimeTypes.find(ext);
+        if (it != mimeTypes.end()) {
+            return it->second;
+        }
+    }
+    return "text/plain";
 }
 
 // Read a file from disk and return its contents as a string
@@ -124,7 +154,7 @@ std::string Utils::getContentType(const std::string& path) {
 bool Utils::readFile(const std::string &path, std::string &out)
 {
     int fd;
-    char buffer[1024];
+    char buffer[8192];
     ssize_t bytesRead;
 
     fd = open(path.c_str(), O_RDONLY);
@@ -246,4 +276,17 @@ std::string Utils::toLower(const std::string& str){
         out[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(out[i])));
     }
     return out;
+}
+
+void Utils::freeBuffer(std::string& s) {
+    std::string().swap(s);
+}
+
+bool Utils::isKnownMethod(const std::string &method)
+{
+    return (
+        method == "GET" ||
+        method == "POST" ||
+        method == "DELETE"
+    );
 }

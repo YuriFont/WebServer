@@ -34,7 +34,7 @@ def test_405_method_not_allowed(server_addr):
 def test_413_payload_too_large(server_addr):
     host, port = server_addr
     MB = 1024 * 1024 # 1MB
-    max_body_mb = 150 # Este valor vai ser multiplicado por 1mb; DEVE bater com o .conf
+    max_body_mb = 51 # Este valor vai ser multiplicado por 1mb; DEVE bater com o .conf
     big_body = b"a" * ((max_body_mb + 1) * MB)  # maior que max_body_size
     
     request = (
@@ -51,14 +51,11 @@ def test_413_payload_too_large(server_addr):
 def test_413_payload_too_large_chunked(server_addr):
     host, port = server_addr
     MB = 1024 * 1024
-    max_body_mb = 150  # DEVE bater com o .conf
+    max_body_mb = 51  # DEVE bater com o .conf
     chunk_size = 8192
 
-    # host = "localhost"
-    # port = 8080
-
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(0.001)
+    s.settimeout(0.01)
     s.connect((host, port))
 
     header = (
@@ -86,7 +83,7 @@ def test_413_payload_too_large_chunked(server_addr):
 
             # tenta capturar resposta antecipada
             try:
-                part = s.recv(4096)
+                part = s.recv(8192)
                 if part:
                     response += part
                     break
@@ -99,7 +96,7 @@ def test_413_payload_too_large_chunked(server_addr):
         ## esperar resposta do servidor
         for _ in range(500):
             try:
-                part = s.recv(4096)
+                part = s.recv(8192)
                 if part:
                     response += part
                     break
@@ -116,8 +113,6 @@ def test_413_payload_too_large_chunked(server_addr):
     print(response)
 
     assert b"413" in response
-
-
 
 def test_400_bad_request(server_addr):
     host, port = server_addr

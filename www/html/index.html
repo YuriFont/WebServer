@@ -49,7 +49,7 @@
 
     <section>
         <h2>2. File Upload (POST)</h2>
-        <p>Faça upload de um arquivo para a pasta <code>/uploads</code>. Verifique se ele aparece lá depois.</p>
+        <p>Faça upload de um arquivo para a pasta <code>/upload</code>. Verifique se ele aparece lá depois.</p>
         
         <div>
             <input type="file" name="fileToUpload" id="fileToUpload">
@@ -62,10 +62,10 @@
 
     <section class="danger-zone">
         <h2>3. File Deletion (DELETE)</h2>
-        <p>Digite o caminho relativo do arquivo para deletar (ex: <code>/uploads/teste.txt</code>).</p>
+        <p>Digite o caminho relativo do arquivo para deletar (ex: <code>/upload/teste.txt</code>).</p>
         <div class="grid">
             <div>
-                <input type="text" id="deletePath" placeholder="/uploads/nome_do_arquivo">
+                <input type="text" id="deletePath" placeholder="/upload/nome_do_arquivo">
                 <button class="danger" onclick="deleteFile()">Enviar DELETE Request</button>
             </div>
             <div>
@@ -181,7 +181,7 @@
             formData.append("fileToUpload", fileInput.files[0]);
 
             // Envia a requisição
-            fetch('/uploads', {
+            fetch('/upload', {
                 method: 'POST',
                 body: formData
                 // Nota: Não definimos 'Content-Type' manualmente aqui, 

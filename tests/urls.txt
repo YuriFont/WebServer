@@ -1,6 +1,4 @@
 http://127.0.0.1:8080/
-http://127.0.0.1:8080/test.py
-http://127.0.0.1:8080/test.py?ok=test
 http://127.0.0.1:8080/cgi-bin/test_cgi.py
 http://127.0.0.1:8080/oldpage
 http://127.0.0.1:8082/

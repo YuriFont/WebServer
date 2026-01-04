@@ -50,7 +50,12 @@ void HttpRequest::parser() {
     _errorCode = 0;
 
     // encontrar o fim dos headers
+    size_t crlfEnd = 4;
     size_t headerEnd = this->_buffer.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        headerEnd = this->_buffer.find("\n\n");
+        crlfEnd = 2;
+    }
     if (headerEnd == std::string::npos) {
         _hasError = true;
         _errorCode = 400;
@@ -181,7 +186,14 @@ void HttpRequest::parser() {
 
     if (this->getContentLength() > 0) {
         _body.reserve(this->getContentLength());
-        _body = this->_buffer.substr(headerEnd + 4);
+    }
+    _body = this->_buffer.substr(headerEnd + crlfEnd);
+
+    std::string te = Utils::toLower(getHeader("Transfer-Encoding"));
+    if (_method == "POST" &&  te.find("chunked") == std::string::npos && it == _headers.end() && _body.size() > 0) {
+        _hasError = true;
+        _errorCode = 411;
+        return;
     }
 }
 
@@ -230,15 +242,6 @@ const std::string& HttpRequest::getQueryString() const {
 size_t HttpRequest::getContentLength() const {
     return this->_contentLength;
 }
-
-// size_t HttpRequest::getContentLength() const {
-//     std::map<std::string, std::string>::const_iterator it = _headers.find("Content-Length");
-//     if (it == _headers.end())
-//         return 0;
-
-//     return static_cast<size_t>(std::strtoull(it->second.c_str(), NULL, 10));
-// }
-
 
 void HttpRequest::reserveSpaceBody(size_t size) {
     this->_body.reserve(size);

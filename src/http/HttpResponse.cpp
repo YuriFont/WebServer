@@ -43,7 +43,7 @@ void HttpResponse::setContentType(const std::string& contentType) {
     this->contentType = contentType;
 };
 
-void HttpResponse::setContentLength(const int& contentLength){
+void HttpResponse::setContentLength(const size_t& contentLength){
     this->contentLength = contentLength;
 };
 
@@ -60,7 +60,7 @@ bool HttpResponse::isConnectionClose() {
     return this->connectionClose;
 };
 
-int HttpResponse::getContentLength() {
+size_t HttpResponse::getContentLength() {
     return this->contentLength;
 }
 

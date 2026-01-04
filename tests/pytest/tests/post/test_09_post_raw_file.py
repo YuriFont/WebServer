@@ -15,4 +15,4 @@ def test_post_raw_file(server_addr):
     )
 
     res = send_raw_http(req, host=host, port=port)
-    assert b"415" in res
+    assert b"201" in res

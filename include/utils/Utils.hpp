@@ -26,6 +26,8 @@ class Utils {
         static bool validTraversalPath(const std::string &rawPath, const std::string &rootPath);
         static std::string getExtension(const std::string &path);
         static std::string toLower(const std::string& str);
+        static void freeBuffer(std::string& s);
+        static bool isKnownMethod(const std::string &method);
 };
 
 #endif
