@@ -183,11 +183,41 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
     std::cout << "[FD " << client_fd << "]" << " ---> " << client.getRequest().getMethod() << " " << client.getRequest().getPath() << " (" << client.getCodeResponseStatus() <<  ") - "<< client.getLenBody() << " bytes" << std::endl;
 }
 
+void Server::applyErrorPage(int client_fd, HttpResponse& resp)
+{
+    ServerConfig* serverCfg = client_server[client_fd];
+    if (!serverCfg)
+        return;
+
+    int status = resp.getStatusCode();
+    if (status < 400)
+        return;
+
+    std::map<int, std::string>::const_iterator it = serverCfg->error_pages.find(status);
+
+    if (it == serverCfg->error_pages.end())
+        return;
+
+    const std::string& path = it->second;
+
+    std::ifstream file(path.c_str());
+    if (!file.is_open())
+        return;
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+
+    resp.setBody(buffer.str());
+    resp.setContentType(Utils::getContentType(path));
+}
+
 void Server::prepareResponse(const int &client_fd, Client& client) {
-    
     HttpResponse& resp = client.handler->getResponse();
     resp.setConnectionClose(true);
-    //resp.setConnectionClose(client.getCloseConnection());
+    // resp.setConnectionClose(client.getCloseConnection());
+
+    applyErrorPage(client_fd, resp);
+
     client.setResponse(resp.toString());
     client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
@@ -195,7 +225,6 @@ void Server::prepareResponse(const int &client_fd, Client& client) {
     epoll_event& event = client.getDataEvent();
     event.events = EPOLLOUT;
     epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
-    // finalizeClientConnection(client_fd, client, closeConnection);
 }
 
 void Server::addBuffer(Client& client, char* buffer, int& bytes) {
@@ -446,6 +475,9 @@ void Server::startCgiForClient(Client& client) {
         response.setConnectionClose(true);
         response.setBody(ErrorPage::build(errorCode));
         response.setContentType("text/html");
+
+        applyErrorPage(client.getClienteFd(), response);
+
         client.setCloseConnection(response.isConnectionClose());
         client.setCodeResponseStatus(response.getStatusResponse());
         client.setResponse(response.toString());
@@ -564,11 +596,10 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
     
     response = cgiHandler->responseHTTP(cgi->output);
-    
+    applyErrorPage(cgi->client_fd, response);
     
     client.setCloseConnection(response.isConnectionClose());
     client.setCodeResponseStatus(response.getStatusResponse());
-    
     client.setResponse(response.toString());
 
     // Cleanup
@@ -751,9 +782,9 @@ void Server::killTimedOutCgi(CgiProcess* cgi) {
     }
     
     if (cgi->pid > 0) {
-        kill(cgi->pid, SIGTERM);
+        kill(cgi->pid, SIGKILL);
         int status;
-        waitpid(cgi->pid, &status, WNOHANG);
+        waitpid(cgi->pid, &status, 0);
     }
     
     _cgiByFd.erase(cgi->stdin_fd);

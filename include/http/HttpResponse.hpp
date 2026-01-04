@@ -33,6 +33,7 @@ class HttpResponse {
         bool isConnectionClose();
         int getContentLength();
         const std::string getStatusResponse();
+        int getStatusCode();
         static HttpResponse methodNotAllowed(const std::vector<std::string>& methods);
         void setAllowedMethods(const std::vector<std::string>& methods);
         void setHeader(const std::string &key, const std::string &value);
