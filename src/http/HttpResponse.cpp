@@ -102,6 +102,10 @@ const std::string HttpResponse::getStatusResponse() {
     return status.makeResponseStatus();
 };
 
+int HttpResponse::getStatusCode() {
+    return status.getCodeStatus();
+}
+
 std::string HttpResponse::toString() {
 
     std::string response = this->httpVersion;

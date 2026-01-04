@@ -194,12 +194,21 @@ void Config::_parseServerName(std::istringstream &iss, ServerConfig &server) {
     server.server_name = name;
 }
 
-void Config::_parseErrorPages(std::istringstream &iss, ServerConfig &server) {
+void Config::_parseErrorPages(std::istringstream &iss, ServerConfig &server)
+{
     int errorCode;
     std::string errorPath;
+    struct stat st;
 
     if (!(iss >> errorCode) || !(iss >> errorPath) || !(iss.eof()))
         throw std::runtime_error("Invalid error_page directive in " + _filePath);
+
+    if (!(stat(errorPath.c_str(), &st) == 0 && S_ISREG(st.st_mode)))
+    {
+        std::cerr << YELLOW <<"Warning: error_page file not found: " << errorPath << " (ignored)" << RESET << std::endl;
+        return;
+    }
+
     server.error_pages[errorCode] = errorPath;
 }
 

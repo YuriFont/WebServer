@@ -118,6 +118,7 @@ const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &reque
 }
 
 void Server::removeClient(int client_fd) {
+    logClientDesconected(client_fd);
     epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, client_fd, NULL);
     removeMethodHandler(clients[client_fd]);
     clients.erase(client_fd);
@@ -131,7 +132,7 @@ void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize
         return;
 
     if (bytes == 0) {
-        logClientDesconected(client_fd);
+        //logClientDesconected(client_fd);
         removeClient(client_fd);
         return;
     }
@@ -192,10 +193,41 @@ void Server::logStatusResponse(const int &client_fd, Client& client) {
     std::cout << "[FD " << client_fd << "]" << " ---> " << client.getRequest().getMethod() << " " << client.getRequest().getPath() << " (" << client.getCodeResponseStatus() <<  ") - "<< client.getLenBody() << " bytes" << std::endl;
 }
 
+void Server::applyErrorPage(int client_fd, HttpResponse& resp)
+{
+    ServerConfig* serverCfg = client_server[client_fd];
+    if (!serverCfg)
+        return;
+
+    int status = resp.getStatusCode();
+    if (status < 400)
+        return;
+
+    std::map<int, std::string>::const_iterator it = serverCfg->error_pages.find(status);
+
+    if (it == serverCfg->error_pages.end())
+        return;
+
+    const std::string& path = it->second;
+
+    std::ifstream file(path.c_str());
+    if (!file.is_open())
+        return;
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+
+    resp.setBody(buffer.str());
+    resp.setContentType(Utils::getContentType(path));
+}
+
 void Server::prepareResponse(const int &client_fd, Client& client) {
-    
     HttpResponse& resp = client.handler->getResponse();
     resp.setConnectionClose(true);
+    // resp.setConnectionClose(client.getCloseConnection());
+
+    applyErrorPage(client_fd, resp);
+
     client.setResponse(resp.toString());
     client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
@@ -203,7 +235,6 @@ void Server::prepareResponse(const int &client_fd, Client& client) {
     epoll_event& event = client.getDataEvent();
     event.events = EPOLLOUT;
     epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
-    // finalizeClientConnection(client_fd, client, closeConnection);
 }
 
 void Server::addBuffer(Client& client, char* buffer, int& bytes) {
@@ -452,6 +483,9 @@ void Server::startCgiForClient(Client& client) {
         response.setConnectionClose(true);
         response.setBody(ErrorPage::build(errorCode));
         response.setContentType("text/html");
+
+        applyErrorPage(client.getClienteFd(), response);
+
         client.setCloseConnection(response.isConnectionClose());
         client.setCodeResponseStatus(response.getStatusResponse());
         client.setResponse(response.toString());
@@ -488,6 +522,48 @@ void Server::removeCgiFd(const int& fd) {
     _cgiByFd.erase(fd);
 }
 
+bool Server::handleCgiFailure(Client& client, CgiProcess* cgi) {
+    bool cgiFailed = false;
+
+    if (cgi->wait_status == -1) {
+        cgiFailed = true; 
+    }
+    else if (WIFSIGNALED(cgi->wait_status)) {
+        cgiFailed = true;
+    } else if (WIFEXITED(cgi->wait_status) && WEXITSTATUS(cgi->wait_status) != 0) {
+        cgiFailed = true;
+    }
+
+    if (!cgiFailed)
+        return false;
+
+    HttpResponse resp;
+    resp.setStatus(500);
+    resp.setContentType("text/html");
+    resp.setBody(ErrorPage::build(500));
+    resp.setConnectionClose(true);
+
+    client.setCloseConnection(true);
+    client.setCodeResponseStatus(resp.getStatusResponse());
+    client.setResponse(resp.toString());
+
+    if (!cgi->stdin_closed) {
+        cgi->stdin_closed = true;
+        removeCgiFd(cgi->stdin_fd);
+    }
+    if (!cgi->stdout_closed) {
+        cgi->stdout_closed = true;
+        removeCgiFd(cgi->stdout_fd);
+    }
+
+    epoll_event& event = client.getDataEvent();
+    event.events = EPOLLOUT;
+    epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+
+    delete cgi;
+    return true;
+}
+
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
     
     if (clients.find(cgi->client_fd) == clients.end()) {
@@ -520,16 +596,18 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
         return;
     }
 
+    if (handleCgiFailure(client, cgi))
+        return;
+
     HttpResponse response;
 
     CgiHandler* cgiHandler = static_cast<CgiHandler*>(client.handler);
     
     response = cgiHandler->responseHTTP(cgi->output);
-    
+    applyErrorPage(cgi->client_fd, response);
     
     client.setCloseConnection(response.isConnectionClose());
     client.setCodeResponseStatus(response.getStatusResponse());
-    
     client.setResponse(response.toString());
 
     // Cleanup
@@ -556,7 +634,6 @@ void Server::handleCgiRead(int fd) {
     CgiProcess* cgi = _cgiByFd[fd];
     char buffer[4096];
 
-
     ssize_t n = read(fd, buffer, sizeof(buffer));
     // Vamos ler o que o pipe tinha e armazenar o resultado
     if (n > 0) {
@@ -574,8 +651,19 @@ void Server::handleCgiRead(int fd) {
                 cgi->stdout_closed = true;
                 removeCgiFd(cgi->stdout_fd);
             }
-            waitpid(cgi->pid, NULL, 0);
+            int wstatus = 0;
+            pid_t w;
+            do {
+                w = waitpid(cgi->pid, &wstatus, 0);
+            } while (w == -1 && errno == EINTR);
+
+            if (w == cgi->pid)
+                cgi->wait_status = wstatus;
+            else
+                cgi->wait_status = -1;
+
             finalizeCgiResponse(cgi);
+
         }
         // Se o n < 0 então e provavelmente um erro pois o epoll nos notificou que tinha dados para leitura
         else {
@@ -644,7 +732,7 @@ void Server::shutdown() {
 
 void signalHandler(int signum) {
     (void)signum;
-    waitpid(-1, NULL, WNOHANG);
+    //waitpid(-1, NULL, WNOHANG);
 }
 
 void Server::updateClientActivity(int fd) {
@@ -703,9 +791,9 @@ void Server::killTimedOutCgi(CgiProcess* cgi) {
     }
     
     if (cgi->pid > 0) {
-        kill(cgi->pid, SIGTERM);
+        kill(cgi->pid, SIGKILL);
         int status;
-        waitpid(cgi->pid, &status, WNOHANG);
+        waitpid(cgi->pid, &status, 0);
     }
     
     _cgiByFd.erase(cgi->stdin_fd);
