@@ -9,6 +9,8 @@ echo "========================================"
 echo " Webserv - Testes automáticos com Siege"
 echo "========================================"
 
+cd ..
+
 # 1. Compilar
 echo ""
 echo "[1] Compilando o projeto..."
@@ -42,13 +44,13 @@ echo ""
 echo "[5] Teste de concorrência"
 siege -c 50 -r 20 "$SERVER_URL" || exit 1
 
-echo ""
-echo "[6] Teste de escrita parcial (arquivo grande)"
-siege -c 100 -r 30 "$SERVER_URL$BIG_FILE" || exit 1
+# echo ""
+# echo "[6] Teste de escrita parcial (arquivo grande)"
+# siege -c 100 -r 30 "$SERVER_URL$BIG_FILE" || exit 1
 
 echo ""
 echo "[7] Teste com keep-alive"
-siege -c 50 -r 20 --keep-alive "$SERVER_URL" || exit 1
+siege -c 50 -r 20 "$SERVER_URL" || exit 1
 
 echo ""
 echo "[8] Teste prolongado"

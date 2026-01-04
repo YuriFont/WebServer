@@ -133,6 +133,7 @@ void RawProcessor::initTypes() {
     _types["application/pdf"] = ".pdf";
     _types["text/plain"]      = ".txt";
     _types["text/csv"]        = ".csv";
+    _types["application/json"] = ".json";
     
     // Microsoft Office (Nomes longos)
     _types["application/msword"] = ".doc";
@@ -146,6 +147,9 @@ void RawProcessor::initTypes() {
     _types["pdf"] = ".pdf";
     _types["plain"] = ".txt";
     _types["csv"] = ".csv";
+
+    // binario
+    _types["application/octet-stream"] = ".bin";
 };
 
 void RawProcessor::cleanup() {
@@ -180,6 +184,9 @@ void RawProcessor::handleRawPost(const std::string& chunk) {
     
     if (_response == NULL)
         _response = new HttpResponse();
+    if (_contentType.empty()) {
+        _contentType = "application/octet-stream"; 
+    }
     if (_types.count(_contentType)) {
         if (!append(chunk, chunk.size())) {
             cleanup();

@@ -72,18 +72,25 @@ void Server::registerSocketsInEpoll() {
 }
 
 void Server::handleNewConnection(int server_fd) {
-    int client_fd = accept(server_fd, NULL, NULL);
-    if (client_fd < 0) return;
-    fcntl(client_fd, F_SETFL, O_NONBLOCK);
-
-    Client client(client_fd);
-    client_server[client_fd] = &server_by_fd[server_fd];
-    clients[client_fd] = client;
     
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &clients[client_fd].getDataEvent());
-    std::cout << GREEN << "New client in the server " << server_by_fd[server_fd].getPort() << RESET << std::endl;
-    logClienteConected(client_fd);
-    updateClientActivity(client_fd);
+    while (true) {
+        int client_fd = accept(server_fd, NULL, NULL);
+        if (client_fd < 0) {
+            if (errno == EWOULDBLOCK || errno == EAGAIN)
+                break;
+            std::cerr << "Accept error: " << strerror(errno) << std::endl;
+            break;
+        }
+        fcntl(client_fd, F_SETFL, O_NONBLOCK);
+        
+        clients[client_fd] = Client(client_fd);
+        client_server[client_fd] = &server_by_fd[server_fd];
+        
+        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &clients[client_fd].getDataEvent());
+        std::cout << GREEN << "New client in the server " << server_by_fd[server_fd].getPort() << RESET << std::endl;
+        logClienteConected(client_fd);
+        updateClientActivity(client_fd);
+    }
 }
 
 const Location &Server::findLocation(ServerConfig *serverCfg, HttpRequest &request) {
@@ -157,6 +164,9 @@ void Server::finalizeClientConnection(const int &client_fd, Client& client, cons
     if (closeConnection) {
         removeClient(client_fd);
     } else {
+        epoll_event& event = client.getDataEvent();
+        event.events = EPOLLIN;
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
         client.cleanData();
     }
 }
@@ -186,7 +196,6 @@ void Server::prepareResponse(const int &client_fd, Client& client) {
     
     HttpResponse& resp = client.handler->getResponse();
     resp.setConnectionClose(true);
-    // resp.setConnectionClose(client.getCloseConnection());
     client.setResponse(resp.toString());
     client.setCloseConnection(resp.isConnectionClose());
     client.setCodeResponseStatus(resp.getStatusResponse());
@@ -299,10 +308,11 @@ void Server::handleClientRequest(int client_fd) {
     if (client.getRequest().hasError()) {
         HttpResponse r;
         r.setStatus(client.getRequest().getErrorCode());
-        r.setConnectionClose(client.getCloseConnection());
+        r.setConnectionClose(true);
         r.setContentType("text/html");
         r.setBody(ErrorPage::build(400));
 
+        client.setCloseConnection(true);
         client.setCodeResponseStatus(r.getStatusResponse());
         client.setResponse(r.toString());
 
@@ -347,7 +357,7 @@ void Server::sendResponseClient(int client_fd) {
 
     // epoll nos garantiu o EPOLLOUT, então o socket esta disponivel para escrita
     Client& client = clients[client_fd];
-    const size_t MAX_SEND = 8192; // ou 4096
+    const size_t MAX_SEND = 16384; // 8192 // ou 4096
     size_t remaining = client.getLenBody() - client.getBytesSend();
     size_t toSend = std::min(MAX_SEND, remaining);
     // std::cout << "Tamanho do corpo a ser enviado: " << client.getLenBody() << " Enviado: " <<  client.getBytesSend() << std::endl;
@@ -365,9 +375,6 @@ void Server::sendResponseClient(int client_fd) {
     if ((size_t)client.getBytesSend() == client.getLenBody()) {
 
         logStatusResponse(client_fd, client);
-        epoll_event& event = client.getDataEvent();
-        event.events = EPOLLIN;
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client_fd, &event);
         removeMethodHandler(client);
         finalizeClientConnection(client_fd, client, client.getCloseConnection());
     }
@@ -609,9 +616,9 @@ void Server::eventLoop() {
         for (int i = 0; i < n; i++) {
             int fd = events[i].data.fd;
 
-          if (server_by_fd.count(fd)) {
+          if (server_by_fd.find(fd) != server_by_fd.end()) {
                 handleNewConnection(fd);
-            } else if (_cgiByFd.count(fd)) {
+            } else if (_cgiByFd.find(fd) != _cgiByFd.end()) {
                 handleCgiEvent(fd, events[i].events);
             } else if (events[i].events & EPOLLERR) {
                 removeClient(fd);
@@ -641,7 +648,8 @@ void signalHandler(int signum) {
 }
 
 void Server::updateClientActivity(int fd) {
-    clients[fd].setLastActivity(time(NULL));
+    if (clients.find(fd) != clients.end())
+        clients[fd].setLastActivity(time(NULL));
 }
 
 void Server::checkClientTimeouts() {
@@ -660,7 +668,7 @@ void Server::checkClientTimeouts() {
 }
 
 void Server::updateCgiActivity(int fd) {
-    if (_cgiByFd.count(fd))
+    if (_cgiByFd.find(fd) != _cgiByFd.end())
         _cgiByFd[fd]->last_activity = time(NULL);
 }
 

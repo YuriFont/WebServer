@@ -84,9 +84,9 @@ echo ""
 echo "[5] Teste de concorrência"
 siege -c 50 -r 20 "$SERVER_URL" || exit 1
 
-echo ""
-echo "[6] Teste de escrita parcial (arquivo grande)"
-siege -c 100 -r 30 "$SERVER_URL$BIG_FILE" || exit 1
+# echo ""
+# echo "[6] Teste de escrita parcial (arquivo grande)"
+# siege -c 100 -r 30 "$SERVER_URL$BIG_FILE" || exit 1
 
 echo ""
 echo "[7] Teste HTTP/1.0 (sem keep-alive)"

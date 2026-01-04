@@ -124,7 +124,7 @@ std::string Utils::getContentType(const std::string& path) {
 bool Utils::readFile(const std::string &path, std::string &out)
 {
     int fd;
-    char buffer[1024];
+    char buffer[8192];
     ssize_t bytesRead;
 
     fd = open(path.c_str(), O_RDONLY);
@@ -246,4 +246,8 @@ std::string Utils::toLower(const std::string& str){
         out[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(out[i])));
     }
     return out;
+}
+
+void Utils::freeBuffer(std::string& s) {
+    std::string().swap(s);
 }
