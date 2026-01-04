@@ -32,17 +32,11 @@ void CgiHandler::handleData(const std::string& chunk) {
 
     _body.append(chunk);
     if (!_request.isChunked()){
-        // std::cout << "Tamanho do append de chunck: " << _body.size() << " Tamanh do length:  " << _request.getContentLength() << std::endl;
         if (_body.size() >= static_cast<size_t>(_request.getContentLength())){
             _isFinish = true;
         }
     }
-    else{
-        // std::cout << "Recebido" << std::endl;
-        // std::cout << _body << std::endl;
-        // std::cout << std::endl;
-        // std::cout << std::endl;
-
+    else {
         _isFinish = true;
     }
 };
@@ -148,14 +142,23 @@ void CgiHandler::spawnCgiChild(const HttpRequest &request, const Location &locat
     close(inPipe[1]);
     close(outPipe[0]);
 
+    size_t dirPos = path.rfind("/");
+    std::string scriptFile = path; 
+    std::string dirPath;
+    if (dirPos != std::string::npos) {
+        scriptFile = path.substr(dirPos + 1);
+        dirPath = path.substr(0, dirPos);
+        chdir(dirPath.c_str());
+    }
+
     //Monta o ambiente CGI
-    std::vector<std::string> env = buildCgiEnv(request, location, path);
+    std::vector<std::string> env = buildCgiEnv(request, location, scriptFile);
     char **envp = Utils::vecToCharArray(env); 
 
     //Argumentos
     char *argv[] = {
         const_cast<char *>(interpreter.c_str()),
-        const_cast<char *>(path.c_str()),
+        const_cast<char *>(scriptFile.c_str()),
         NULL};
 
     execve(interpreter.c_str(), argv, envp);
@@ -164,22 +167,6 @@ void CgiHandler::spawnCgiChild(const HttpRequest &request, const Location &locat
     std::cerr << "CGI execve failed: " << strerror(errno) << std::endl;
     Utils::freeCharArray(envp);
     exit(EXIT_FAILURE);
-}
-
-std::string CgiHandler::readCgiOutput(int outPipe[2], pid_t pid)
-{
-    close(outPipe[1]);
-    std::string output;
-    char buffer[4096];
-    ssize_t bytes;
-
-    while ((bytes = read(outPipe[0], buffer, sizeof(buffer))) > 0)
-        output.append(buffer, bytes);
-
-    close(outPipe[0]);
-    waitpid(pid, NULL, 0);
-
-    return output;
 }
 
 HttpResponse& CgiHandler::responseHTTP(const std::string &output)
@@ -279,7 +266,6 @@ CgiProcess* CgiHandler::startCgi(){
                 status = CgiProcess::CGI_FORBIDDEN;
     }
 
-
     // Se aconteceu algum erro
     if (status != CgiProcess::CGI_OK) {
         CgiProcess* cgi = new CgiProcess();
@@ -300,7 +286,6 @@ CgiProcess* CgiHandler::startCgi(){
 
     int inPipe[2]; //servidor -> CGI (STDIN do CGI)
     int outPipe[2]; //CGI -> servidor (STDOUT do CGI)
-
     
     if (pipe(inPipe) == -1 || pipe(outPipe) == -1)
         throw std::runtime_error("Error creating pipe");

@@ -27,6 +27,7 @@ class Utils {
         static std::string getExtension(const std::string &path);
         static std::string toLower(const std::string& str);
         static void freeBuffer(std::string& s);
+        static bool isKnownMethod(const std::string &method);
 };
 
 #endif

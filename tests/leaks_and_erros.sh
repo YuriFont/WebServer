@@ -3,7 +3,6 @@
 SERVER_BIN=./bin/webserv
 CONFIG_FILE=./config/default.conf
 SERVER_URL=http://localhost:8080
-BIG_FILE=/arquivo_grande.html
 LIST_URLS=./tests/urls.txt
 
 echo "========================================"
@@ -84,27 +83,23 @@ echo ""
 echo "[5] Teste de concorrência"
 siege -c 50 -r 20 "$SERVER_URL" || exit 1
 
-# echo ""
-# echo "[6] Teste de escrita parcial (arquivo grande)"
-# siege -c 100 -r 30 "$SERVER_URL$BIG_FILE" || exit 1
-
 echo ""
-echo "[7] Teste HTTP/1.0 (sem keep-alive)"
+echo "[6] Teste HTTP/1.0 (sem keep-alive)"
 siege -H "Connection: close" -c 50 -r 20 "$SERVER_URL" || exit 1
 
 echo ""
-echo "[8] Teste em rotas diferentes"
+echo "[7] Teste em rotas diferentes"
 siege -c 50 -t 30S -f "$LIST_URLS" || exit 1
 
 echo ""
-echo "[9] Teste prolongado"
+echo "[8] Teste prolongado"
 siege -c 100 -t 1M "$SERVER_URL" || exit 1
 
 # -----------------------------
 # 10. Verificação de leaks e estabilidade
 # -----------------------------
 echo ""
-echo "[10] Verificação de vazamentos e estabilidade"
+echo "[9] Verificação de vazamentos e estabilidade"
 sleep 2  # tempo para fechar conexões
 
 if ! check_alive $SERVER_PID; then

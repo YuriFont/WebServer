@@ -28,6 +28,9 @@ IMethodHandler* RequestHandler::handle(const ServerConfig &config, HttpRequest &
     std::string method = request.getMethod();
     std::string requestExt = Utils::getExtension(request.getPath());
 
+    if (!Utils::isKnownMethod(method))
+        return new NotImplementedHandler(config, request, location);
+
     if ((location.isCgiEnabled() && isCgiEnabledForExtension(request, location)) || (config.hasGlobalCGI && config.hasExtGlobalCgi(requestExt)))
         return new CgiHandler(config, request, location, client_fd);
 

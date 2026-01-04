@@ -27,7 +27,7 @@ printf "DELETE /upload/imagem.png HTTP/1.1\r\nHost: $H\r\nConnection: close\r\n\
 
 5. Chunked Transfer Encoding (Avançado) Se seu servidor suporta chunked, isso deve funcionar. Envia "Wiki" (4 bytes) e depois "pedia" (5 bytes).
 ```bash
-printf "POST /upload HTTP/1.1\r\nHost: $H\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n" | nc $H $P
+printf "POST /upload HTTP/1.1\r\nHost: $H\r\nContent-Type: text/plain\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n" | nc $H $P
 ```
 
 # ❌ Testes de Erro / Falha (Esperado: 4xx ou 5xx)
@@ -64,7 +64,7 @@ printf "GET ../../../../../etc/passwd HTTP/1.1\r\nHost: $H\r\n\r\n" | nc $H $P
 
 12. Teste post simples, tabém podendo ser get, o script cgi mostra o metodo utilizado
 ```bash
-  curl -i -X POST http://localhost:8080/test.py
+  curl -i -X POST http://localhost:8080/cgi-bin/test.py
 ```
 13. Script CGI em python com uma exceção lançada (Teste de falha do CGI)
 ```bash
@@ -76,6 +76,6 @@ printf "GET ../../../../../etc/passwd HTTP/1.1\r\nHost: $H\r\n\r\n" | nc $H $P
 ```
 15. Recuperar algo enviado pelo post
 ```bash
-    curl -i http://localhost:8080/files/nome do arquivo
+    curl -O http://localhost:8080/files/nome do arquivo
 ```
   

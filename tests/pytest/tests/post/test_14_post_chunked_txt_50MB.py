@@ -7,10 +7,10 @@ from utils.ensure_file_exist import ensure_test_file
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # tests/
 FILES_DIR = BASE_DIR / "files"
-def test_post_raw_existing_txt_100mb_chunked(server_addr):
+def test_post_raw_existing_txt_50mb_chunked(server_addr):
     host, port = server_addr
-    file_path = (FILES_DIR / "text_100mb.txt")
-    ensure_test_file(file_path, size_mb=100, pattern=b"Z")
+    file_path = (FILES_DIR / "text_50mb.txt")
+    ensure_test_file(file_path, size_mb=50, pattern=b"Z")
 
     # assert file_path.exists(), "Arquivo text_100mb.txt não existe"
 

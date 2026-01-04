@@ -13,5 +13,7 @@ htmlcov/
 tests/pytest/tests/files/text_10mb.txt
 # Aquivo de 100MB
 tests/pytest/tests/files/text_100mb.txt
+# Aquivo de 50MB
+tests/pytest/tests/files/text_50mb.txt
 # Aquivo de video
 tests/pytest/tests/files/video.mp4

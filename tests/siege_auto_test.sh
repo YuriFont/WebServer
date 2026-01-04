@@ -3,7 +3,6 @@
 SERVER_BIN=./bin/webserv
 CONFIG_FILE=./config/default.conf
 SERVER_URL=http://localhost:8080
-BIG_FILE=/arquivo_grande.html
 
 echo "========================================"
 echo " Webserv - Testes automáticos com Siege"
@@ -44,16 +43,12 @@ echo ""
 echo "[5] Teste de concorrência"
 siege -c 50 -r 20 "$SERVER_URL" || exit 1
 
-# echo ""
-# echo "[6] Teste de escrita parcial (arquivo grande)"
-# siege -c 100 -r 30 "$SERVER_URL$BIG_FILE" || exit 1
-
 echo ""
-echo "[7] Teste com keep-alive"
+echo "[6] Teste com keep-alive"
 siege -c 50 -r 20 "$SERVER_URL" || exit 1
 
 echo ""
-echo "[8] Teste prolongado"
+echo "[7] Teste prolongado"
 siege -c 100 -t 1M "$SERVER_URL" || exit 1
 
 echo ""

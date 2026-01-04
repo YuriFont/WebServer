@@ -3,6 +3,8 @@
 
 #include <string>
 #include <sys/types.h>
+#include <ctime>
+#include <cstddef>
 
 struct CgiProcess {
 
