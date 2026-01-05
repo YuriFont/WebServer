@@ -105,7 +105,7 @@ std::vector<std::string> CgiHandler::buildCgiEnv(const HttpRequest &request, con
     std::string port = Utils::toString(_config.getPort());
     env.push_back("SERVER_PORT=" + port);
     env.push_back("PATH_INFO=" + request.getPath());
-    env.push_back("REDIRECT_STATUS=200"); //Tem que puxar o retorno do processo aqui
+    env.push_back("REDIRECT_STATUS=200"); 
 
     std::map<std::string, std::string> headers = request.getHeaders();
 

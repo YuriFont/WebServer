@@ -51,7 +51,7 @@ class Server {
         void finalizeCgiResponse(CgiProcess* cgi);
         void startCgiForClient(Client& client);
         void handleCgiEvent(int fd, uint32_t ev);
-        void handleCgiWrite(int fd);
+        int handleCgiWrite(int fd);
         void handleCgiRead(int fd);
         void removeCgiFd(const int& fd);
         void updateClientActivity(int fd);
@@ -61,7 +61,8 @@ class Server {
         void killTimedOutCgi(CgiProcess* cgi);
         void prepareBadRequest(Client& client);
         bool handleCgiFailure(Client& client, CgiProcess* cgi);
-        void applyErrorPage(int client_fd, HttpResponse& resp);
+        int applyErrorPage(int client_fd, HttpResponse& resp);
+        void handleFailCgiProcess(CgiProcess *cgi);
 };
 
 #endif

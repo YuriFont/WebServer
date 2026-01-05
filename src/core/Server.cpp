@@ -78,7 +78,7 @@ void Server::handleNewConnection(int server_fd) {
         if (client_fd < 0) {
             if (errno == EWOULDBLOCK || errno == EAGAIN)
                 break;
-            std::cerr << "Accept error: " << strerror(errno) << std::endl;
+            std::cerr << RED << "Accept error: " << strerror(errno) << RESET << std::endl;
             break;
         }
         fcntl(client_fd, F_SETFL, O_NONBLOCK);
@@ -132,12 +132,11 @@ void Server::readClientBuffer(const int& client_fd, char* buffer, size_t bufSize
         return;
 
     if (bytes == 0) {
-        //logClientDesconected(client_fd);
         removeClient(client_fd);
         return;
     }
 
-    std::cerr << "[FD " << client_fd << "] Error reading socket, closing connection\n";
+    std::cerr << RED << "[FD " << client_fd << "] Error reading socket, closing connection\n" << RESET;
     logClientDesconected(client_fd);
     removeClient(client_fd);
 }
@@ -186,45 +185,45 @@ void Server::logClienteConected(const int &client_fd) {
 }
 
 void Server::logClientDesconected(const int &client_fd) {
-    std::cout << RED << "[FD " << client_fd << "] (-) Connection closed" << RESET << std::endl;
+    std::cout << CYAN << "[FD " << client_fd << "] (-) Connection closed" << RESET << std::endl;
 }
 
 void Server::logStatusResponse(const int &client_fd, Client& client) {
     std::cout << "[FD " << client_fd << "]" << " ---> " << client.getRequest().getMethod() << " " << client.getRequest().getPath() << " (" << client.getCodeResponseStatus() <<  ") - "<< client.getLenBody() << " bytes" << std::endl;
 }
 
-void Server::applyErrorPage(int client_fd, HttpResponse& resp)
+int Server::applyErrorPage(int client_fd, HttpResponse& resp)
 {
     ServerConfig* serverCfg = client_server[client_fd];
     if (!serverCfg)
-        return;
+        return (0);
 
     int status = resp.getStatusCode();
     if (status < 400)
-        return;
+        return (0);
 
     std::map<int, std::string>::const_iterator it = serverCfg->error_pages.find(status);
 
     if (it == serverCfg->error_pages.end())
-        return;
+        return (0);
 
     const std::string& path = it->second;
 
     std::ifstream file(path.c_str());
     if (!file.is_open())
-        return;
+        return (0);
 
     std::ostringstream buffer;
     buffer << file.rdbuf();
 
     resp.setBody(buffer.str());
     resp.setContentType(Utils::getContentType(path));
+    return (1);
 }
 
 void Server::prepareResponse(const int &client_fd, Client& client) {
     HttpResponse& resp = client.handler->getResponse();
     resp.setConnectionClose(true);
-    // resp.setConnectionClose(client.getCloseConnection());
 
     applyErrorPage(client_fd, resp);
 
@@ -391,7 +390,6 @@ void Server::sendResponseClient(int client_fd) {
     const size_t MAX_SEND = 16384; // 8192 // ou 4096
     size_t remaining = client.getLenBody() - client.getBytesSend();
     size_t toSend = std::min(MAX_SEND, remaining);
-    // std::cout << "Tamanho do corpo a ser enviado: " << client.getLenBody() << " Enviado: " <<  client.getBytesSend() << std::endl;
     ssize_t bytesSend = send(client_fd, (client.getResponse().data() + client.getBytesSend()),  toSend, 0);
 
     // Falha ao escrever no socket do cliente mesmo epoll nos garantindo que podiamos escrever
@@ -412,7 +410,38 @@ void Server::sendResponseClient(int client_fd) {
     updateClientActivity(client_fd);
 };
 
-void Server::handleCgiWrite(int fd) {
+void Server::handleFailCgiProcess(CgiProcess *cgi){
+    if (!cgi->stdin_closed) {
+        cgi->stdin_closed = true;
+        removeCgiFd(cgi->stdin_fd);
+    }
+    if (!cgi->stdout_closed) {
+        cgi->stdout_closed = true;
+        removeCgiFd(cgi->stdout_fd);
+    }
+    waitpid(cgi->pid, NULL, 0);
+    std::map<int, Client>::iterator it = clients.find(cgi->client_fd);
+    if (it != clients.end()) {
+        Client& client = it->second;
+        HttpResponse r;
+        r.setStatus(500);
+        r.setConnectionClose(true);
+        client.setCloseConnection(true);
+        if (!applyErrorPage(client.getClienteFd(), r)) {
+            r.setContentType("text/html");
+            r.setBody(ErrorPage::build(500));
+            client.setResponse(r.toString());
+        }
+        client.setCodeResponseStatus(r.getStatusResponse());
+
+        epoll_event& event = client.getDataEvent();
+        event.events = EPOLLOUT;
+        epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
+        delete cgi;
+    }
+}
+
+int Server::handleCgiWrite(int fd) {
 
     // Quando entra aqui o epoll nos garantiu que era possivel escrever no pipe
     CgiProcess* cgi = _cgiByFd[fd];
@@ -440,15 +469,13 @@ void Server::handleCgiWrite(int fd) {
         }
     }
     // erro ao tentar escrever no stdin do pipe no processo, já que o epoll nos mandou EPOLLOUT
-    // Necessario encerrar o processo e jogar o erro para o cliente ?
     else {
         std::cerr << "Error writing to CGI stdin. Closing pipe." << std::endl;
-        epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, 0);
-        cgi->stdin_closed = true;
-        _cgiByFd.erase(fd);
-        close(fd);
+        handleFailCgiProcess(cgi);
+        return (1);
     }
     updateCgiActivity(fd);
+    return (0);
 }
 
 void Server::startCgiForClient(Client& client) {
@@ -496,10 +523,7 @@ void Server::startCgiForClient(Client& client) {
         epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, client.getClienteFd(), &event);
         return ;
     }
-        
-    if (_cgiByFd.find(cgi->stdin_fd) != _cgiByFd.end() || _cgiByFd.find(cgi->stdout_fd) != _cgiByFd.end()) {
-        std::cout << "Pipe já registrado =================================" << std::endl;
-    }
+
     _cgiByFd[cgi->stdin_fd]  = cgi;
     _cgiByFd[cgi->stdout_fd] = cgi;
         
@@ -567,7 +591,7 @@ bool Server::handleCgiFailure(Client& client, CgiProcess* cgi) {
 void Server::finalizeCgiResponse(CgiProcess* cgi) {
     
     if (clients.find(cgi->client_fd) == clients.end()) {
-        std::cerr << "Erro: CGI finalizou, mas o cliente (fd " << cgi->client_fd << ") já desconectou." << std::endl;
+        std::cerr << RED << "Error: CGI finished, but the client (fd " << cgi->client_fd << ") has already disconnected." << RESET << std::endl;
         if (!cgi->stdin_closed) {
             cgi->stdin_closed = true;
             removeCgiFd(cgi->stdin_fd);
@@ -583,7 +607,7 @@ void Server::finalizeCgiResponse(CgiProcess* cgi) {
     Client& client = clients[cgi->client_fd];
 
     if (client.handler == NULL) {
-        std::cerr << "Erro: Cliente existe, mas o handler é NULL." << std::endl;
+        std::cerr << RED <<  "Error: Client exists, but the handler is NULL." << RESET << std::endl;
         if (!cgi->stdin_closed) {
             cgi->stdin_closed = true;
             removeCgiFd(cgi->stdin_fd);
@@ -663,22 +687,11 @@ void Server::handleCgiRead(int fd) {
                 cgi->wait_status = -1;
 
             finalizeCgiResponse(cgi);
-
         }
         // Se o n < 0 então e provavelmente um erro pois o epoll nos notificou que tinha dados para leitura
         else {
-            
-            std::cerr << "[ " << cgi->client_fd << " ]" << " Error reading from CGI stdout (FD " << fd << "). Trusting epoll to close." << std::endl;
-            if (!cgi->stdin_closed) {
-                cgi->stdin_closed = true;
-                removeCgiFd(cgi->stdin_fd);
-            }
-            if (!cgi->stdout_closed) {
-                cgi->stdout_closed = true;
-                removeCgiFd(cgi->stdout_fd);
-            }
-            //remover cliente também ?
-            delete cgi;
+            std::cerr << RED << "[ " << cgi->client_fd << " ]" << " Error reading from CGI stdout (FD " << fd << "). Trusting epoll to close." << RESET << std::endl;
+            handleFailCgiProcess(cgi);
         }
         updateCgiActivity(fd);
     }
@@ -688,7 +701,8 @@ void Server::handleCgiEvent(int fd, uint32_t ev) {
     CgiProcess* cgi = _cgiByFd[fd];
 
     if ((ev & EPOLLOUT) && fd == cgi->stdin_fd) {
-        handleCgiWrite(fd);
+        if (handleCgiWrite(fd))
+            return ;
     }
     
     if ((ev & (EPOLLIN | EPOLLHUP)) && fd == cgi->stdout_fd) {
@@ -730,11 +744,6 @@ void Server::shutdown() {
     _running = false;
 }
 
-void signalHandler(int signum) {
-    (void)signum;
-    //waitpid(-1, NULL, WNOHANG);
-}
-
 void Server::updateClientActivity(int fd) {
     if (clients.find(fd) != clients.end())
         clients[fd].setLastActivity(time(NULL));
@@ -749,7 +758,7 @@ void Server::checkClientTimeouts() {
 
         if (now - current->second.getLastActivity() > _CLIENT_TIMEOUT) {
             int fd = current->first;
-            std::cout << "[FD " << fd  << "] " << RED << "Connection timeout" << RESET << std::endl;
+            std::cout << "[FD " << fd  << "] " << YELLOW << "Connection timeout" << RESET << std::endl;
             removeClient(fd);
         }
     }
@@ -769,7 +778,7 @@ void Server::checkCgiTimeouts() {
         
         if (now - cgi->last_activity > CGI_TIMEOUT) {
             int fd = current->first;
-            std::cout << RED << "[CGI FD " << fd << "] Timeout after " 
+            std::cout << MAGENTA << "[CGI FD " << fd << "] Timeout after " 
                       << CGI_TIMEOUT << "s. Killing process PID " << cgi->pid << RESET << std::endl;
             
             killTimedOutCgi(cgi);
@@ -821,7 +830,6 @@ void Server::killTimedOutCgi(CgiProcess* cgi) {
 }
 
 void Server::start() {
-    signal(SIGCHLD, signalHandler);
     signal(SIGPIPE, SIG_IGN);
     initAllSockets();
     registerSocketsInEpoll();

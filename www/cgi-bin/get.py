@@ -4,7 +4,7 @@
 import os, sys, json, urllib.parse
 
 HERE = os.path.dirname(__file__)
-LIB = os.path.normpath(os.path.join(HERE, "..", "lib"))
+LIB = os.path.normpath(os.path.join(HERE, "../", "lib"))
 if LIB not in sys.path:
     sys.path.insert(0, LIB)
     
