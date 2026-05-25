@@ -1,0 +1,23 @@
+# GitHub Linguist overrides
+# Source of truth for the project's language stats: only C/C++ counts.
+# Everything below is demo content, fixtures, test scripts and config —
+# none of which represent the engineering work in this repository.
+
+# Static demo sites and error pages (HTML/CSS/JS used only to exercise the server)
+www/**        linguist-vendored
+errors/**     linguist-vendored
+
+# Test suites (bash + python harnesses, not the product)
+tests/**      linguist-vendored
+
+# Configuration files
+config/**     linguist-documentation
+*.conf        linguist-documentation
+
+# CI / editor metadata
+.github/**    linguist-vendored
+.vscode/**    linguist-vendored
+
+# Force-classify project sources as C++ regardless of extension heuristics
+*.cpp         linguist-language=C++
+*.hpp         linguist-language=C++
