@@ -274,7 +274,9 @@ Both suites are wired into **GitHub Actions** (`.github/workflows/webserv-tests.
 
 This is a **42 group project** delivered as part of the *webserv* assignment. Code in this repository was written and is maintained by:
 
-- **Yuri Fontenele** — [GitHub](https://github.com/YuriFont) · yufonten@student.42.rio
+- **Yuri Fontenele** — [GitHub](https://github.com/YuriFont)
+- **Erick Ramos** —  [GitHub](https://github.com/erickramosxp)
+- **Luíza Furuno** — [GitHub](https://github.com/furunoluiza)
 
 Built at **42 Rio**.
 
